@@ -5,7 +5,7 @@ import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
-import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { useMapStore } from '@/store/mapStore';
 import { useAuthStore } from '@/store/authStore';
 import { UPDATE_MAP_STATE } from '@/graphql/auth';
@@ -20,9 +20,38 @@ import { SavedPolygonsList } from './SavedPolygonsList';
 import { LayerControlPanel } from './LayerControlPanel';
 import { FeatureQueryPopup } from './FeatureQueryPopup';
 
-import { Layers, LogOut, Map as MapIcon } from 'lucide-react';
+import { Layers, LogOut, Map as MapIcon, Satellite, Mountain, Sun, Moon } from 'lucide-react';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
+
+// Base layer configurations
+const BASE_LAYERS = {
+    satellite: {
+        url: 'mapbox://styles/mapbox/satellite-v9',
+        label: 'Satellite',
+        icon: Satellite
+    },
+    streets: {
+        url: 'mapbox://styles/mapbox/streets-v12',
+        label: 'Streets',
+        icon: MapIcon
+    },
+    terrain: {
+        url: 'mapbox://styles/mapbox/outdoors-v12',
+        label: 'Terrain',
+        icon: Mountain
+    },
+    light: {
+        url: 'mapbox://styles/mapbox/light-v11',
+        label: 'Light',
+        icon: Sun
+    },
+    dark: {
+        url: 'mapbox://styles/mapbox/dark-v11',
+        label: 'Dark',
+        icon: Moon
+    }
+};
 
 // Hardcoded regions for navigation
 const REGIONS = [
@@ -41,6 +70,7 @@ export function ForestMap() {
     const [wmsLayers, setWmsLayers] = useState<WMSLayerConfig[]>(WMS_LAYERS);
     const [isDrawing, setIsDrawing] = useState(false);
     const [isQuerying, setIsQuerying] = useState(false);
+    const [baseLayer, setBaseLayer] = useState<keyof typeof BASE_LAYERS>('satellite');
     const [queryPopup, setQueryPopup] = useState<{
         visible: boolean;
         lng: number;
@@ -52,7 +82,7 @@ export function ForestMap() {
     const map = useRef<mapboxgl.Map | null>(null);
     const draw = useRef<MapboxDraw | null>(null);
 
-    const { lng, lat, zoom, filters, showCadastre, setViewState, setShowCadastre } = useMapStore();
+    const { lng, lat, zoom, filters, showCadastre, setViewState, setShowCadastre, setFilters } = useMapStore();
     const { user, logout, updateUser } = useAuthStore();
 
     const { data: savedPolygonsData, refetch: refetchPolygons } = useQuery(GET_MY_POLYGONS);
@@ -69,7 +99,7 @@ export function ForestMap() {
 
         map.current = new mapboxgl.Map({
             container: mapContainer.current,
-            style: 'mapbox://styles/mapbox/satellite-v9',
+            style: BASE_LAYERS.satellite.url,
             center: [initialLng, initialLat],
             zoom: initialZoom,
         });
@@ -106,7 +136,6 @@ export function ForestMap() {
             setDrawnGeometry(geometry);
             setShowSaveModal(true);
             setIsDrawing(false);
-            // draw.current?.changeMode('simple_select');
         });
 
         // Handle draw mode changes
@@ -139,15 +168,11 @@ export function ForestMap() {
 
         // Feature query on click (skip if drawing)
         const handleMapClick = async (e: mapboxgl.MapMouseEvent) => {
-            // Skip if in drawing mode
             if (draw.current?.getMode() === 'draw_polygon') return;
 
-            // Skip if any draw feature is selected (clicked on existing polygon)
             const selected = draw.current?.getSelected();
             // @ts-ignore
             if (selected?.features?.length > 0) return;
-
-            // REMOVED: queryRenderedFeatures - causes error when layers don't exist
 
             setIsQuerying(true);
             const { lng, lat } = e.lngLat;
@@ -166,9 +191,39 @@ export function ForestMap() {
         };
     }, [user?.id]);
 
+    // Handle base layer change
+    const handleBaseLayerChange = (layerKey: keyof typeof BASE_LAYERS) => {
+        if (!map.current) return;
+
+        setBaseLayer(layerKey);
+        map.current.setStyle(BASE_LAYERS[layerKey].url);
+
+        // Re-add WMS layers after style change
+        map.current.once('style.load', () => {
+            addWMSLayers(map.current!);
+            if (savedPolygonsData?.myPolygons) {
+                displaySavedPolygonsOnMap(map.current!, savedPolygonsData.myPolygons, false);
+            }
+        });
+    };
+
     // Add WMS layers
     const addWMSLayers = (mapInstance: mapboxgl.Map) => {
-        WMS_LAYERS.forEach((layer) => {
+        // Clean up existing layers first
+        wmsLayers.forEach((layer) => {
+            const sourceId = `wms-${layer.id}`;
+            const layerId = `wms-layer-${layer.id}`;
+
+            if (mapInstance.getLayer(layerId)) {
+                mapInstance.removeLayer(layerId);
+            }
+            if (mapInstance.getSource(sourceId)) {
+                mapInstance.removeSource(sourceId);
+            }
+        });
+
+        // Add all WMS layers
+        wmsLayers.forEach((layer) => {
             const sourceId = `wms-${layer.id}`;
             const layerId = `wms-layer-${layer.id}`;
 
@@ -239,11 +294,8 @@ export function ForestMap() {
             setShowResults(true);
             setShowSaveModal(false);
 
-            // Clear the drawn polygon from map
             draw.current?.deleteAll();
             setDrawnGeometry(null);
-
-            // Refresh saved polygons list
             refetchPolygons();
         } catch (error) {
             console.error('Error saving polygon:', error);
@@ -251,7 +303,7 @@ export function ForestMap() {
         }
     };
 
-    // Handle region navigation from FilterPanel
+    // Handle region navigation
     const handleRegionNavigate = (lat: number, lng: number, zoom: number) => {
         if (!map.current) return;
         map.current.flyTo({
@@ -261,7 +313,7 @@ export function ForestMap() {
         });
     };
 
-    // Display saved polygons (without fitting bounds)
+    // Display saved polygons
     useEffect(() => {
         // @ts-ignore
         if (!map.current || !savedPolygonsData?.myPolygons || !mapLoaded) return;
@@ -334,8 +386,31 @@ export function ForestMap() {
 
     return (
         <div className="relative w-full h-screen bg-gray-900">
-            {/* Address Search - Add if implemented */}
-            {/* <AddressSearch onSelect={handleAddressSelect} /> */}
+            {/* Base Layer Control - Top Left */}
+            <div className="absolute bottom-4 right-4 z-10">
+                <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-2">
+                    <div className="text-xs font-semibold text-gray-500 mb-2 px-1">Base Map</div>
+                    <div className="flex flex-col gap-1">
+                        {(Object.keys(BASE_LAYERS) as Array<keyof typeof BASE_LAYERS>).map((key) => {
+                            const { label, icon: Icon } = BASE_LAYERS[key];
+                            return (
+                                <button
+                                    key={key}
+                                    onClick={() => handleBaseLayerChange(key)}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                                        baseLayer === key
+                                            ? 'bg-[#0b4a59] text-white'
+                                            : 'hover:bg-gray-100 text-gray-700'
+                                    }`}
+                                >
+                                    <Icon size={16} />
+                                    {label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
 
             <div ref={mapContainer} className="absolute inset-0" style={{ width: '100%', height: '100vh' }} />
 
@@ -381,11 +456,7 @@ export function ForestMap() {
             {queryPopup?.visible && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
-                    style={{
-                       /* left: map.current?.project([queryPopup.lng, queryPopup.lat]).x,
-                        top: map.current?.project([queryPopup.lng, queryPopup.lat]).y,*/
-                        zIndex: 50
-                    }}
+                    style={{ zIndex: 50 }}
                 >
                     <div className="pointer-events-auto">
                         <FeatureQueryPopup
