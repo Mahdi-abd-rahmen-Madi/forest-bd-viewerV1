@@ -13,12 +13,13 @@
     "lint": "turbo run lint"
   },
   "devDependencies": {
+    "proj4": "^2.20.8",
+    "shapefile": "^0.6.6",
     "turbo": "^2.9.6",
+    "typeorm": "^0.3.28",
     "typescript": "^5.3.0"
   },
   "dependencies": {
-    "proj4": "^2.20.8",
-    "proj4js": "^10.0.0",
-    "shapefile": "^0.6.6"
+    "proj4js": "^10.0.0"
   }
 }
