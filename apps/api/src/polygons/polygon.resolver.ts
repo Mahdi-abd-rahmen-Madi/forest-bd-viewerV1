@@ -1,0 +1,50 @@
+import { Resolver, Query, Mutation, Args, Context } from '@nestjs/graphql';
+import { UseGuards } from '@nestjs/common';
+import { UserPolygon } from '@forest/database';
+import { PolygonService } from './polygon.service';
+import { SavePolygonInput } from './dto/save-polygon.input';
+import { GqlAuthGuard } from '../common/guards/gql-auth.guard';
+
+@Resolver(() => UserPolygon)
+export class PolygonResolver {
+  constructor(private readonly polygonService: PolygonService) {}
+
+  @Mutation(() => UserPolygon)
+  @UseGuards(GqlAuthGuard)
+  async savePolygon(
+    @Args('input') input: SavePolygonInput,
+    @Context() context: { req: { user: { sub: string } } },
+  ): Promise<UserPolygon> {
+    const userId = context.req.user.sub;
+    return await this.polygonService.savePolygon(userId, input);
+  }
+
+  @Query(() => [UserPolygon])
+  @UseGuards(GqlAuthGuard)
+  async myPolygons(
+    @Context() context: { req: { user: { sub: string } } },
+  ): Promise<UserPolygon[]> {
+    const userId = context.req.user.sub;
+    return await this.polygonService.getMyPolygons(userId);
+  }
+
+  @Mutation(() => Boolean)
+  @UseGuards(GqlAuthGuard)
+  async deletePolygon(
+    @Args('polygonId') polygonId: string,
+    @Context() context: { req: { user: { sub: string } } },
+  ): Promise<boolean> {
+    const userId = context.req.user.sub;
+    return await this.polygonService.deletePolygon(userId, polygonId);
+  }
+
+  @Mutation(() => UserPolygon)
+  @UseGuards(GqlAuthGuard)
+  async reanalyzePolygon(
+    @Args('polygonId') polygonId: string,
+    @Context() context: { req: { user: { sub: string } } },
+  ): Promise<UserPolygon> {
+    const userId = context.req.user.sub;
+    return await this.polygonService.reanalyzePolygon(userId, polygonId);
+  }
+}

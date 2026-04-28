@@ -21,9 +21,9 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@forest/database": "workspace:*",
     "@apollo/server": "^4.13.0",
     "@as-integrations/express5": "^1.1.2",
+    "@forest/database": "workspace:*",
     "@nestjs/apollo": "^13.2.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
@@ -33,7 +33,9 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.14",
     "@nestjs/typeorm": "^11.0.0",
+    "@turf/turf": "^7.3.5",
     "@types/ms": "^2.1.0",
+    "@types/turf": "^3.5.32",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",

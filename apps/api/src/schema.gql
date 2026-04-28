@@ -2,6 +2,13 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type AnalysisResults {
+  forestTypes: [String!]
+  plotCount: Float
+  speciesDistribution: [SpeciesDistribution!]
+  totalForestArea: Float
+}
+
 type AuthPayload {
   token: String!
   user: UserModel!
@@ -82,6 +89,12 @@ input RegisterInput {
   firstName: String
   lastName: String
   password: String!
+}
+
+type SpeciesDistribution {
+  areaHectares: Float!
+  percentage: Float!
+  species: String!
 }
 
 type UserModel {
