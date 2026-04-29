@@ -1,17 +1,17 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { Field, ObjectType, ID } from '@nestjs/graphql';
+import { Field, ObjectType, ID, registerEnumType } from '@nestjs/graphql';
 import { User } from './user.entity';
 
-// Import GraphQL JSON scalar
-const { GraphQLJSON } = require('graphql-type-json');
+export enum AnalysisStatus {
+    PENDING = 'pending',
+    COMPLETED = 'completed',
+    FAILED = 'failed'
+}
 
-export type AnalysisStatus = 'pending' | 'completed' | 'failed';
-
-// Register enum for GraphQL - call this after imports
-const { registerEnumType } = require('@nestjs/graphql');
-registerEnumType('AnalysisStatus', {
-  name: 'AnalysisStatus',
-  description: 'The analysis status of a polygon',
+// Register enum for GraphQL
+registerEnumType(AnalysisStatus, {
+    name: 'AnalysisStatus',
+    description: 'The analysis status of a polygon',
 });
 
 @ObjectType('UserPolygon')
@@ -34,9 +34,9 @@ export class UserPolygon {
     @Column()
     name!: string;
 
-    @Field(() => String) // Represent geometry as string
+    @Field(() => String)
     @Column('geometry', { spatialFeatureType: 'MultiPolygon', srid: 4326 })
-    geometry!: any;
+    geometry!: string;
 
     @Field(() => Number)
     @Column('double precision')
@@ -44,22 +44,13 @@ export class UserPolygon {
 
     @Field(() => AnalysisResults, { nullable: true })
     @Column('jsonb', { nullable: true })
-    analysisResults?: {
-        plotCount?: number;
-        speciesDistribution?: Array<{
-            species: string;
-            areaHectares: number;
-            percentage: number;
-        }>;
-        forestTypes?: string[];
-        totalForestArea?: number;
-    } | null;
+    analysisResults?: AnalysisResults | null;
 
-    @Field(() => String)
+    @Field(() => AnalysisStatus)
     @Column({
         type: 'enum',
-        enum: ['pending', 'completed', 'failed'],
-        default: 'pending'
+        enum: AnalysisStatus,
+        default: AnalysisStatus.PENDING
     })
     status!: AnalysisStatus;
 
@@ -74,11 +65,7 @@ export class AnalysisResults {
     plotCount?: number;
 
     @Field(() => [SpeciesDistribution], { nullable: true })
-    speciesDistribution?: Array<{
-        species: string;
-        areaHectares: number;
-        percentage: number;
-    }>;
+    speciesDistribution?: SpeciesDistribution[];
 
     @Field(() => [String], { nullable: true })
     forestTypes?: string[];

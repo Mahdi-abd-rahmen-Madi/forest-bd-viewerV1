@@ -1,9 +1,9 @@
 import { Entity, Column, PrimaryColumn, Index } from 'typeorm';
 
 @Entity('forest_plots')
-/*@Index(['code_region'])
-@Index(['code_departement'])
-@Index(['code_commune'])*/
+@Index(['codeRegion'])
+@Index(['codeDepartement'])
+@Index(['codeCommune'])
 export class ForestPlot {
     @PrimaryColumn()
     id!: string;

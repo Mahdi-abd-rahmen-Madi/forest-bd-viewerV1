@@ -38,7 +38,7 @@ import { Request, Response } from 'express';
     AuthModule,
     UsersModule,
     GeospatialModule,
-    // PolygonModule, // Temporarily disabled due to GraphQL schema issues
+    PolygonModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }

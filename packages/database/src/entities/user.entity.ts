@@ -1,44 +1,54 @@
-
-
 import { OneToMany, Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Field, ObjectType, ID } from '@nestjs/graphql';
 import { UserPolygon } from './user-polygon.entity';
 
+@ObjectType('User')
 @Entity('users')
 
 export class User {
-    @PrimaryGeneratedColumn('uuid')
-    id!: string;
+  @Field(() => ID)
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
 
-    @Column({ unique: true })
-    email!: string;
+  @Field()
+  @Column({ unique: true })
+  email!: string;
 
-    @Column()
-    passwordHash!: string;
+  @Column()
+  passwordHash!: string;
 
-    @Column({ nullable: true })
-    firstName?: string;
+  @Field({ nullable: true })
+  @Column({ nullable: true })
+  firstName?: string;
 
-    @Column({ nullable: true })
-    lastName?: string;
+  @Field({ nullable: true })
+  @Column({ nullable: true })
+  lastName?: string;
 
-    // Last map view state
-    @Column('double precision', { nullable: true })
-    lastLng?: number;
+  // Last map view state
+  @Field({ nullable: true })
+  @Column('double precision', { nullable: true })
+  lastLng?: number;
 
-    @Column('double precision', { nullable: true })
-    lastLat?: number;
+  @Field({ nullable: true })
+  @Column('double precision', { nullable: true })
+  lastLat?: number;
 
-    @Column('double precision', { nullable: true })
-    lastZoom?: number;
+  @Field({ nullable: true })
+  @Column('double precision', { nullable: true })
+  lastZoom?: number;
 
-    @Column('jsonb', { nullable: true })
-    lastFilters?: Record<string, any>;
+  @Field(() => [String], { nullable: true })
+  @Column('jsonb', { nullable: true })
+  lastFilters?: Record<string, any>;
 
-    @CreateDateColumn()
-    createdAt!: Date;
+  @Field()
+  @CreateDateColumn()
+  createdAt!: Date;
 
-    @UpdateDateColumn()
-    updatedAt!: Date;
+  @Field()
+  @UpdateDateColumn()
+  updatedAt!: Date;
 
   /*  @OneToMany(() => UserPolygon, polygon => polygon.user)
     polygons?: UserPolygon[];*/

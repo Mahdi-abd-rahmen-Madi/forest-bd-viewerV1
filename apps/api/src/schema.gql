@@ -9,6 +9,13 @@ type AnalysisResults {
   totalForestArea: Float
 }
 
+"""The analysis status of a polygon"""
+enum AnalysisStatus {
+  COMPLETED
+  FAILED
+  PENDING
+}
+
 type AuthPayload {
   token: String!
   user: UserModel!
@@ -20,6 +27,11 @@ input BoundsInput {
   minLat: Float!
   minLng: Float!
 }
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
 
 type ForestPlotType {
   codeCommune: String!
@@ -69,9 +81,12 @@ input MapStateInput {
 }
 
 type Mutation {
+  deletePolygon(polygonId: String!): Boolean!
   login(input: LoginInput!): AuthPayload!
   logout: Boolean!
+  reanalyzePolygon(polygonId: String!): UserPolygon!
   register(input: RegisterInput!): AuthPayload!
+  savePolygon(input: SavePolygonInput!): UserPolygon!
   updateMapState(input: MapStateInput!): UserModel!
 }
 
@@ -81,6 +96,7 @@ type Query {
   forestPlots(filters: ForestPlotsFilterInput): [ForestPlotType!]!
   lieuxDits(communeCode: String!): [String!]!
   me: UserModel!
+  myPolygons: [UserPolygon!]!
   regions: [String!]!
 }
 
@@ -91,10 +107,29 @@ input RegisterInput {
   password: String!
 }
 
+input SavePolygonInput {
+  description: String
+  geometry: String!
+  name: String!
+}
+
 type SpeciesDistribution {
   areaHectares: Float!
   percentage: Float!
   species: String!
+}
+
+type User {
+  createdAt: DateTime!
+  email: String!
+  firstName: String
+  id: ID!
+  lastFilters: [String!]
+  lastLat: Float
+  lastLng: Float
+  lastName: String
+  lastZoom: Float
+  updatedAt: DateTime!
 }
 
 type UserModel {
@@ -106,4 +141,16 @@ type UserModel {
   lastLng: Float
   lastName: String
   lastZoom: Float
+}
+
+type UserPolygon {
+  analysisResults: AnalysisResults
+  areaHectares: Float!
+  createdAt: DateTime!
+  geometry: String!
+  id: ID!
+  name: String!
+  status: AnalysisStatus!
+  user: User
+  userId: String!
 }
