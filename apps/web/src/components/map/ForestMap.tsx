@@ -466,7 +466,7 @@ export function ForestMap() {
                 variables: {
                     input: {
                         name: name.trim(),
-                        geometry: drawnGeometry,
+                        geometry: JSON.stringify(drawnGeometry),
                         areaHectares: Math.round(areaHectares * 100) / 100
                     }
                 }

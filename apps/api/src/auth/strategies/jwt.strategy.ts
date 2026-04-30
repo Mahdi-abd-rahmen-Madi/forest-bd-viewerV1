@@ -21,6 +21,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     async validate(payload: any): Promise<User> {
+        // Development mode bypass for mock authentication
+        if (process.env.NODE_ENV === 'development' && payload.sub === 'dev-user') {
+            // Return a mock user for development
+            return {
+                id: 'dev-user',
+                email: 'dev@example.com',
+                firstName: 'Dev',
+                lastName: 'User',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            } as User;
+        }
+
         const user = await this.userRepository.findOne({ where: { id: payload.sub } });
         if (!user) {
             throw new UnauthorizedException();

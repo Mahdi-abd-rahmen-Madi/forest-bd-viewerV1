@@ -106,7 +106,11 @@ export class GeospatialService implements IGeospatialService {
      * Analyze spatial intersection between geometry and forest plots
      */
     async analyzeSpatialIntersection(request: SpatialAnalysisRequest): Promise<SpatialAnalysisResult> {
+        console.log('GeospatialService - request.geometry:', request.geometry);
         const geometry = JSON.parse(request.geometry);
+        console.log('GeospatialService - parsed geometry type:', geometry.type);
+        console.log('GeospatialService - parsed geometry:', JSON.stringify(geometry, null, 2));
+        
         const areaInSquareMeters = turf.area(geometry);
         const areaHectares = areaInSquareMeters / 10000;
 
@@ -195,22 +199,41 @@ export class GeospatialService implements IGeospatialService {
      * Find intersecting forest plots for a geometry
      */
     async findIntersectingPlots(geometry: string): Promise<ForestPlot[]> {
-        const geometryString = geometry;
+        console.log('findIntersectingPlots - original geometry:', geometry);
+        
+        // Convert Polygon to MultiPolygon if needed to match database schema
+        const parsedGeometry = JSON.parse(geometry);
+        let processedGeometry = geometry;
+        
+        if (parsedGeometry.type === 'Polygon') {
+            const multiPolygon = {
+                type: 'MultiPolygon',
+                coordinates: [parsedGeometry.coordinates]
+            };
+            processedGeometry = JSON.stringify(multiPolygon);
+            console.log('findIntersectingPlots - converted to MultiPolygon:', processedGeometry);
+        }
 
-        // Optimized query with LIMIT for performance and security
-        const query = `
-            SELECT id, code_region, code_departement, code_commune, lieu_dit, 
-                   essences, surface_hectares, type_foret, ST_AsGeoJSON(geom)::json as geometry
-            FROM forest_plots 
-            WHERE ST_Intersects(
-                ST_GeomFromGeoJSON($1),
-                geom
-            )
-            LIMIT 10000
-        `;
+        try {
+            // Use ST_GeomFromGeoJSON to convert JSON to PostGIS geometry for spatial query
+            const query = `
+                SELECT id, code_region, code_departement, code_commune, lieu_dit, 
+                       essences, surface_hectares, type_foret, ST_AsGeoJSON(geom)::json as geometry
+                FROM forest_plots 
+                WHERE ST_Intersects(
+                    ST_GeomFromGeoJSON($1),
+                    geom
+                )
+                LIMIT 10000
+            `;
 
-        const result = await this.dataSource.query(query, [geometryString]);
-        return result as ForestPlot[];
+            const result = await this.dataSource.query(query, [processedGeometry]);
+            console.log('findIntersectingPlots - query successful, found', result.length, 'plots');
+            return result as ForestPlot[];
+        } catch (error) {
+            console.error('findIntersectingPlots - PostGIS error:', error);
+            throw error;
+        }
     }
 
     /**

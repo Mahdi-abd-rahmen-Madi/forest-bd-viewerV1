@@ -1,5 +1,5 @@
 import { Field, InputType } from '@nestjs/graphql';
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber } from 'class-validator';
 
 @InputType()
 export class SavePolygonInput {
@@ -9,9 +9,12 @@ export class SavePolygonInput {
   name!: string;
 
   @Field()
-  @IsString()
   @IsNotEmpty()
-  geometry!: string; // GeoJSON MultiPolygon string
+  geometry!: string; // GeoJSON string
+
+  @Field(() => Number)
+  @IsNumber()
+  areaHectares!: number;
 
   @Field({ nullable: true })
   @IsOptional()

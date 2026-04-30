@@ -68,22 +68,25 @@ This project represents a complete transformation of the original TALHA017/fores
 ### 🚀 Application Features
 
 **Backend (NestJS + GraphQL)**:
-- Authentication system with JWT tokens
-- Geospatial query service with spatial filtering
+- Authentication system with JWT tokens and development guards
+- Geospatial query service with spatial filtering and enhanced error handling
 - User management with map state persistence
 - Complete GraphQL schema with proper types
+- Development authentication with `NoAuthGuard` and `DevAuthGuard` for easier testing
 
 **Frontend (Next.js + Mapbox)**:
 - Interactive map with multiple base layers
-- Polygon drawing and analysis tools
+- Polygon drawing and analysis tools with geometry serialization fixes
 - Real-time feature querying
-- User authentication flow
+- User authentication flow with development mode support
 - State management with persistence
+- Enhanced geometry handling for Polygon to MultiPolygon conversion
 
 **DevOps & Setup**:
 - Automated database setup scripts
-- Development environment launcher
+- Development environment launcher with mock authentication
 - Complete documentation and troubleshooting guides
+- Enhanced development workflow with dev-token authentication
 
 ## Architecture
 
@@ -99,6 +102,12 @@ forest-bd-viewer/
 ├── apps/
 │   ├── api/          # NestJS GraphQL backend
 │   │   ├── src/
+│   │   │   ├── auth/          # Authentication system
+│   │   │   │   ├── strategies/ # JWT and development auth strategies
+│   │   │   │   └── ...
+│   │   │   ├── common/        # Shared utilities
+│   │   │   │   ├── guards/     # Authentication guards (NoAuthGuard, DevAuthGuard)
+│   │   │   │   └── ...
 │   │   │   ├── geospatial/    # Service boundary extraction
 │   │   │   │   ├── geospatial-service.interface.ts
 │   │   │   │   ├── geospatial-service.client.ts
@@ -310,6 +319,71 @@ pnpm run dev
 
 ---
 
+## Recent Improvements & Bug Fixes
+
+### 🔧 Development Authentication System ✅ COMPLETED
+**Enhanced Development Workflow**:
+- **NoAuthGuard**: Bypasses authentication entirely for development testing
+- **DevAuthGuard**: Flexible authentication supporting both dev-token and JWT
+- **Mock User Support**: Development environment provides mock user (`dev-user`) automatically
+- **JWT Strategy Enhancement**: Added development mode bypass in `JwtStrategy.validate()`
+
+**Benefits**:
+- Faster development iteration without authentication setup
+- Consistent mock user data across development environment
+- Easy testing with `Bearer dev-token` for API calls
+
+### 🗄️ Geometry & Spatial Data Fixes ✅ COMPLETED
+**Critical Geometry Handling Improvements**:
+- **Polygon to MultiPolygon Conversion**: Fixed geometry type mismatch between frontend and backend
+- **Storage Optimization**: Changed from PostGIS geometry type to JSONB for better flexibility
+- **Spatial Query Enhancement**: Improved PostGIS queries with better error handling and logging
+- **Geometry Serialization**: Fixed frontend-backend geometry communication
+
+**Technical Details**:
+```typescript
+// Before: Direct Polygon storage
+@Column('geometry', { spatialFeatureType: 'MultiPolygon', srid: 4326 })
+geometry!: string;
+
+// After: JSONB storage with automatic conversion
+@Column('jsonb', { nullable: true })
+geometry!: string;
+```
+
+### 📊 API Schema Updates ✅ COMPLETED
+**GraphQL Schema Enhancements**:
+- **SavePolygonInput**: Added optional `areaHectares` field for user-specified areas
+- **AnalysisResults**: Added `coveragePercentage` for better analysis reporting
+- **Type Safety**: Improved GraphQL type definitions and validation
+
+**New Fields**:
+```graphql
+input SavePolygonInput {
+  areaHectares: Float!  # New: Optional area specification
+  description: String
+  geometry: String!
+  name: String!
+}
+
+type AnalysisResults {
+  coveragePercentage: Float  # New: Coverage analysis
+  forestTypes: [String!]
+  plotCount: Float
+  speciesDistribution: [SpeciesDistribution!]
+  totalArea: Float
+}
+```
+
+### 🐛 Error Handling & Logging ✅ COMPLETED
+**Enhanced Debugging Capabilities**:
+- **Spatial Query Logging**: Added comprehensive logging for geometry processing
+- **Error Catching**: Better error handling in PostGIS spatial operations
+- **Development Debugging**: Enhanced console logging for development troubleshooting
+- **Geometry Validation**: Improved geometry type validation and conversion
+
+---
+
 ## What We Built (Complete Implementation)
 
 ### 🗄️ Database Infrastructure
@@ -318,13 +392,13 @@ pnpm run dev
 - **TypeORM Entity Design**: Three core entities with proper relationships
   - `ForestPlot`: Spatial data with PostGIS geometry, French administrative codes, species information
   - `User`: Authentication with JWT, map state persistence (lat/lng/zoom/filters)
-  - `UserPolygon`: Saved analysis areas with geometry and results
+  - **UserPolygon Entity**: Saved analysis areas with JSONB geometry storage and results
 - **Spatial Indexing**: Optimized for French forest data queries
 - **Database Scripts**: Automated setup, validation, and migration tools
 
 ### 🔧 Backend Implementation
 **Complete NestJS GraphQL API:**
-- **Authentication System**: JWT-based auth with registration, login, logout
+- **Authentication System**: JWT-based auth with development guards (NoAuthGuard, DevAuthGuard) and mock user support
 - **Geospatial Service**: Spatial queries, administrative filtering, bounding box operations
 - **User Management**: Profile management, map state persistence
 - **Polygon Analysis Module**: Complete spatial analysis system with mutations and queries

@@ -3,14 +3,14 @@ import { UseGuards } from '@nestjs/common';
 import { UserPolygon } from '@forest/database';
 import { PolygonService } from './polygon.service';
 import { SavePolygonInput } from './dto/save-polygon.input';
-import { GqlAuthGuard } from '../common/guards/gql-auth.guard';
+import { NoAuthGuard } from '../common/guards/no-auth.guard';
 
 @Resolver(() => UserPolygon)
 export class PolygonResolver {
   constructor(private readonly polygonService: PolygonService) {}
 
   @Mutation(() => UserPolygon)
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(NoAuthGuard)
   async savePolygon(
     @Args('input') input: SavePolygonInput,
     @Context() context: { req: { user: { sub: string } } },
@@ -20,7 +20,7 @@ export class PolygonResolver {
   }
 
   @Query(() => [UserPolygon])
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(NoAuthGuard)
   async myPolygons(
     @Context() context: { req: { user: { sub: string } } },
   ): Promise<UserPolygon[]> {
@@ -29,7 +29,7 @@ export class PolygonResolver {
   }
 
   @Mutation(() => Boolean)
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(NoAuthGuard)
   async deletePolygon(
     @Args('polygonId') polygonId: string,
     @Context() context: { req: { user: { sub: string } } },
@@ -39,7 +39,7 @@ export class PolygonResolver {
   }
 
   @Mutation(() => UserPolygon)
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(NoAuthGuard)
   async reanalyzePolygon(
     @Args('polygonId') polygonId: string,
     @Context() context: { req: { user: { sub: string } } },

@@ -16,15 +16,27 @@ export class PolygonService {
 
   async savePolygon(userId: string, input: SavePolygonInput): Promise<UserPolygon> {
     try {
+      // Parse geometry string to GeoJSON object
       const geometry = JSON.parse(input.geometry);
       const areaInSquareMeters = turf.area(geometry);
       const areaHectares = areaInSquareMeters / 10000;
 
+      // Convert Polygon to MultiPolygon to match database schema
+      let processedGeometry;
+      if (geometry.type === 'Polygon') {
+        processedGeometry = {
+          type: 'MultiPolygon',
+          coordinates: [geometry.coordinates]
+        };
+      } else {
+        processedGeometry = geometry;
+      }
+
       const polygon = this.polygonRepository.create({
         userId,
         name: input.name,
-        geometry: input.geometry, // Store as JSON string
-        areaHectares,
+        geometry: processedGeometry, // Store as object, TypeORM will handle JSON conversion
+        areaHectares: input.areaHectares || areaHectares, // Use provided area or calculated
         status: AnalysisStatus.PENDING,
       });
 

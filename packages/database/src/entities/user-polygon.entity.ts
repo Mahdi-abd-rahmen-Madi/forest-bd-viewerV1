@@ -35,7 +35,7 @@ export class UserPolygon {
     name!: string;
 
     @Field(() => String)
-    @Column('geometry', { spatialFeatureType: 'MultiPolygon', srid: 4326, nullable: true })
+    @Column('jsonb', { nullable: true })
     geometry!: string;
 
     @Field(() => Number)
@@ -63,6 +63,9 @@ export class UserPolygon {
 export class AnalysisResults {
     @Field(() => Number, { nullable: true })
     plotCount?: number;
+
+    @Field(() => Number, { nullable: true })
+    coveragePercentage?: number;
 
     @Field(() => [SpeciesDistribution], { nullable: true })
     speciesDistribution?: SpeciesDistribution[];
