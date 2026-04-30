@@ -187,6 +187,9 @@ class ShapefileImporter {
       // Generate unique ID
       const id = `forest_${this.importedCount + 1}`;
       
+      // Calculate surface area from geometry in WGS84
+      const surfaceHectares = this.calculateSurfaceArea(geometry);
+      
       // Map shapefile properties to database fields
       // Updated to match actual BD FORET shapefile structure
       const entity = {
@@ -197,7 +200,7 @@ class ShapefileImporter {
         lieuDit: properties.LIEU_DIT || null,
         geom: geometry,
         essences: this.parseEssences(properties.ESSENCE || properties.ESSENCES),
-        surfaceHectares: this.parseSurfaceArea(properties.SURFACE || properties.surface_hectares),
+        surfaceHectares: surfaceHectares,
         typeForet: properties.TYPE_FORET || properties.TFV || null,
         codeTfv: properties.CODE_TFV || null,
         tfvG11: properties.TFV_G11 || null
@@ -230,6 +233,46 @@ class ShapefileImporter {
     }
     
     return [String(essencesField)];
+  }
+
+  calculateSurfaceArea(geometry) {
+    try {
+      // Use a simple approximation for area calculation
+      // For more accurate results, we'd need to use proper geodesic calculations
+      let totalArea = 0;
+      
+      if (geometry.type === 'MultiPolygon') {
+        geometry.coordinates.forEach(polygon => {
+          totalArea += this.calculatePolygonArea(polygon);
+        });
+      } else if (geometry.type === 'Polygon') {
+        totalArea = this.calculatePolygonArea(geometry.coordinates);
+      }
+      
+      // Convert from square degrees to hectares (rough approximation)
+      // This is a simplified calculation - for production use, consider using proper geodesic libraries
+      const squareMeters = totalArea * 111320 * 111320 * Math.cos(48 * Math.PI / 180); // Approximate for France
+      const hectares = squareMeters / 10000;
+      
+      return Math.round(hectares * 100) / 100; // Round to 2 decimal places
+    } catch (error) {
+      console.error('❌ Area calculation error:', error);
+      return null;
+    }
+  }
+  
+  calculatePolygonArea(coordinates) {
+    // Use Shoelace formula for polygon area
+    let area = 0;
+    const ring = coordinates[0]; // Exterior ring
+    
+    for (let i = 0; i < ring.length - 1; i++) {
+      const [x1, y1] = ring[i];
+      const [x2, y2] = ring[i + 1];
+      area += x1 * y2 - x2 * y1;
+    }
+    
+    return Math.abs(area) / 2;
   }
 
   parseSurfaceArea(surfaceField) {

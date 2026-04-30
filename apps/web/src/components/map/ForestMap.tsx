@@ -23,8 +23,10 @@ import { PolygonResultsPanel } from './PolygonResultsPanel';
 import { SavedPolygonsList } from './SavedPolygonsList';
 import { LayerControlPanel } from './LayerControlPanel';
 import { FeatureQueryPopup } from './FeatureQueryPopup';
+import { VosgesCoverageOverlay } from './VosgesCoverageOverlay';
+import { getVosgesCoverageGeoJSON, VOSGES_CENTER } from '@/utils/vosgesGeometry';
 
-import { Layers, LogOut, Map as MapIcon, Satellite, Mountain, Sun, Moon } from 'lucide-react';
+import { Layers, LogOut, Map as MapIcon, MapPin, Info, Satellite, Mountain, Sun, Moon } from 'lucide-react';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
@@ -82,6 +84,8 @@ export function ForestMap() {
         data: any;
     } | null>(null);
     const [showForestPlots, setShowForestPlots] = useState(true);
+    const [showCoverageOverlay, setShowCoverageOverlay] = useState(false);
+    const [showVosgesOutline, setShowVosgesOutline] = useState(true);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
@@ -120,6 +124,60 @@ export function ForestMap() {
         ]);
     }, []);
 
+    // Add Vosges coverage outline layer
+    const addVosgesCoverageLayer = (mapInstance: mapboxgl.Map) => {
+        // Clean up existing Vosges layer
+        if (mapInstance.getLayer('vosges-coverage-fill')) {
+            mapInstance.removeLayer('vosges-coverage-fill');
+        }
+        if (mapInstance.getLayer('vosges-coverage-outline')) {
+            mapInstance.removeLayer('vosges-coverage-outline');
+        }
+        if (mapInstance.getSource('vosges-coverage')) {
+            mapInstance.removeSource('vosges-coverage');
+        }
+
+        // Add Vosges coverage source
+        const vosgesGeoJSON = getVosgesCoverageGeoJSON();
+        mapInstance.addSource('vosges-coverage', {
+            type: 'geojson',
+            data: {
+                type: 'FeatureCollection',
+                features: [vosgesGeoJSON]
+            }
+        });
+
+        // Add fill layer for Vosges coverage area
+        mapInstance.addLayer({
+            id: 'vosges-coverage-fill',
+            type: 'fill',
+            source: 'vosges-coverage',
+            paint: {
+                'fill-color': '#3b82f6',
+                'fill-opacity': 0.1
+            },
+            layout: {
+                'visibility': showVosgesOutline ? 'visible' : 'none'
+            }
+        });
+
+        // Add outline layer for Vosges coverage area
+        mapInstance.addLayer({
+            id: 'vosges-coverage-outline',
+            type: 'line',
+            source: 'vosges-coverage',
+            paint: {
+                'line-color': '#3b82f6',
+                'line-width': 2,
+                'line-opacity': 0.8,
+                'line-dasharray': [5, 5]
+            },
+            layout: {
+                'visibility': showVosgesOutline ? 'visible' : 'none'
+            }
+        });
+    };
+
     // Initialize map
     useEffect(() => {
         if (!mapContainer.current) return;
@@ -157,6 +215,7 @@ export function ForestMap() {
             setMapLoaded(true);
             addWMSLayers(map.current!);
             addForestPlotsLayer(map.current!);
+            addVosgesCoverageLayer(map.current!);
             updateZoom();
         });
 
@@ -242,6 +301,7 @@ export function ForestMap() {
         map.current.once('style.load', () => {
             addWMSLayers(map.current!);
             addForestPlotsLayer(map.current!);
+            addVosgesCoverageLayer(map.current!);
             if (savedPolygonsData?.myPolygons) {
                 displaySavedPolygonsOnMap(map.current!, savedPolygonsData.myPolygons, false);
             }
@@ -462,6 +522,29 @@ export function ForestMap() {
             const areaInSquareMeters = area(drawnGeometry);
             const areaHectares = areaInSquareMeters / 10000;
             
+            // DEBUG: Log polygon coordinates and bounds
+            console.log('🎯 Frontend - Saving polygon with coordinates:', JSON.stringify(drawnGeometry, null, 2));
+            
+            // Calculate bounds for debugging
+            const bounds = {
+                minLng: Math.min(...drawnGeometry.coordinates[0].map((coord: number[]) => coord[0])),
+                maxLng: Math.max(...drawnGeometry.coordinates[0].map((coord: number[]) => coord[0])),
+                minLat: Math.min(...drawnGeometry.coordinates[0].map((coord: number[]) => coord[1])),
+                maxLat: Math.max(...drawnGeometry.coordinates[0].map((coord: number[]) => coord[1]))
+            };
+            console.log('📍 Frontend - Polygon bounds:', bounds);
+            console.log('📏 Frontend - Calculated area:', areaHectares, 'hectares');
+            
+            // Check if polygon is in expected forest data region (Vosges)
+            const inVosgesRegion = bounds.minLng >= 5.39 && bounds.maxLng <= 7.19 && 
+                                   bounds.minLat >= 47.81 && bounds.maxLat <= 48.51;
+            console.log('🌲 Frontend - In Vosges region?', inVosgesRegion);
+            
+            if (!inVosgesRegion) {
+                console.warn('⚠️ Frontend - Polygon outside forest data coverage area');
+                console.log('💡 Frontend - Forest data available for Vosges region only (5.39-7.19°E, 47.81-48.51°N)');
+            }
+            
             const { data } = await savePolygon({
                 variables: {
                     input: {
@@ -494,6 +577,30 @@ export function ForestMap() {
             zoom: zoom,
             essential: true
         });
+    };
+
+    // Handle navigation to Vosges region
+    const handleNavigateToVosges = () => {
+        if (!map.current) return;
+        map.current.flyTo({
+            center: [VOSGES_CENTER.lng, VOSGES_CENTER.lat],
+            zoom: VOSGES_CENTER.zoom,
+            essential: true
+        });
+    };
+
+    // Toggle Vosges outline visibility
+    const toggleVosgesOutline = () => {
+        setShowVosgesOutline(!showVosgesOutline);
+        if (map.current) {
+            const visibility = showVosgesOutline ? 'none' : 'visible';
+            if (map.current.getLayer('vosges-coverage-fill')) {
+                map.current.setLayoutProperty('vosges-coverage-fill', 'visibility', visibility);
+            }
+            if (map.current.getLayer('vosges-coverage-outline')) {
+                map.current.setLayoutProperty('vosges-coverage-outline', 'visibility', visibility);
+            }
+        }
     };
 
     // Display saved polygons
@@ -662,6 +769,13 @@ export function ForestMap() {
                 </div>
             )}
 
+            {/* Vosges Coverage Info Overlay */}
+            <VosgesCoverageOverlay
+                visible={showCoverageOverlay}
+                onClose={() => setShowCoverageOverlay(false)}
+                onNavigateToVosges={handleNavigateToVosges}
+            />
+
             {/* Query Loading Indicator */}
             {isQuerying && (
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-white rounded-lg shadow-lg px-4 py-2">
@@ -697,24 +811,45 @@ export function ForestMap() {
 
             {/* Controls positioned after Forest Explorer panel */}
             <div className="absolute top-4 left-[380px] z-10 flex flex-col gap-2">
-                
-                <button
-                    onClick={() => setShowCadastre(!showCadastre)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg border transition-all text-sm ${
-                        showCadastre ? 'bg-[#0b4a59] text-white border-[#0b4a59]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                    }`}
-                >
-                    <Layers size={18} />
-                    <span className="font-medium">Cadastre</span>
-                </button>
+                {/* First row - Cadastre and Coverage Info */}
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setShowCadastre(!showCadastre)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg border transition-all text-sm ${
+                            showCadastre ? 'bg-[#0b4a59] text-white border-[#0b4a59]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                        }`}
+                    >
+                        <Layers size={18} />
+                        <span className="font-medium">Cadastre</span>
+                    </button>
 
-                <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 px-3 py-2 bg-white text-red-600 rounded-lg shadow-lg border border-gray-200 hover:bg-red-50 transition-all text-sm"
-                >
-                    <LogOut size={18} />
-                    <span className="font-medium">Logout</span>
-                </button>
+                    <button
+                        onClick={() => setShowCoverageOverlay(true)}
+                        className="flex items-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-lg shadow-lg border border-amber-500 hover:bg-amber-600 transition-all text-sm"
+                    >
+                        <Info size={18} />
+                        <span className="font-medium">Coverage Info</span>
+                    </button>
+                </div>
+
+                {/* Second row - Vosges Navigation and Logout */}
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleNavigateToVosges}
+                        className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg shadow-lg border border-blue-500 hover:bg-blue-600 transition-all text-sm"
+                    >
+                        <MapPin size={18} />
+                        <span className="font-medium">Navigate to Vosges</span>
+                    </button>
+
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 px-3 py-2 bg-white text-red-600 rounded-lg shadow-lg border border-gray-200 hover:bg-red-50 transition-all text-sm"
+                    >
+                        <LogOut size={18} />
+                        <span className="font-medium">Logout</span>
+                    </button>
+                </div>
             </div>
 
                 </div>
