@@ -35,7 +35,7 @@ export class UserPolygon {
     name!: string;
 
     @Field(() => String)
-    @Column('geometry', { spatialFeatureType: 'MultiPolygon', srid: 4326 })
+    @Column('geometry', { spatialFeatureType: 'MultiPolygon', srid: 4326, nullable: true })
     geometry!: string;
 
     @Field(() => Number)
