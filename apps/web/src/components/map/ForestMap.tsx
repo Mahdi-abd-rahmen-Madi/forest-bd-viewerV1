@@ -14,6 +14,7 @@ import { UPDATE_MAP_STATE } from '@/graphql/auth';
 import { GET_MY_POLYGONS, SAVE_POLYGON_MUTATION } from '@/graphql/polygons';
 import { queryAllLayers } from '@/services/wmsFeatureInfo';
 import { WMS_LAYERS, getWMSTileUrl, WMSLayerConfig } from '@/services/wmsLayers';
+import { useViewportForestData } from '@/hooks/useViewportForestData';
 import { MapboxDrawCreateEvent, MapboxDrawModeChangeEvent, UpdateMapStateResponse, MyPolygonsQueryResult, FeatureQueryPopupProps, SelectHandlerCallback, User } from '@/types';
 
 import { FilterPanel } from './FilterPanel';
@@ -80,6 +81,7 @@ export function ForestMap() {
         lat: number;
         data: any;
     } | null>(null);
+    const [showForestPlots, setShowForestPlots] = useState(true);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
@@ -91,6 +93,18 @@ export function ForestMap() {
     const { data: savedPolygonsData, refetch: refetchPolygons } = useQuery<MyPolygonsQueryResult>(GET_MY_POLYGONS);
     const [updateMapState] = useMutation(UPDATE_MAP_STATE);
     const [savePolygon] = useMutation(SAVE_POLYGON_MUTATION);
+
+    // Viewport-based forest data loading
+    const { plots: viewportPlots, isLoading: viewportLoading, error: viewportError, cacheSize } = useViewportForestData(map.current, {
+        filters: {
+            regionCode: filters.regionCode,
+            departementCode: filters.departementCode,
+            communeCode: filters.communeCode,
+            lieuDit: filters.lieuDit,
+        },
+        maxCacheAge: 3 * 60 * 1000, // 3 minutes for better cache freshness
+        bufferSize: 0.05 // Smaller buffer for more precise viewport loading
+    });
 
     // Initialize WMS preconnections
     useEffect(() => {
@@ -142,6 +156,7 @@ export function ForestMap() {
         map.current.on('load', () => {
             setMapLoaded(true);
             addWMSLayers(map.current!);
+            addForestPlotsLayer(map.current!);
             updateZoom();
         });
 
@@ -226,6 +241,7 @@ export function ForestMap() {
         // Re-add WMS layers after style change
         map.current.once('style.load', () => {
             addWMSLayers(map.current!);
+            addForestPlotsLayer(map.current!);
             if (savedPolygonsData?.myPolygons) {
                 displaySavedPolygonsOnMap(map.current!, savedPolygonsData.myPolygons, false);
             }
@@ -270,6 +286,134 @@ export function ForestMap() {
         updateWMSLayerVisibility(map.current!.getZoom());
     };
 
+    // Add forest plots layer for viewport-based data
+    const addForestPlotsLayer = (mapInstance: mapboxgl.Map) => {
+        // Clean up existing forest plots layer
+        if (mapInstance.getLayer('forest-plots-fill')) {
+            mapInstance.removeLayer('forest-plots-fill');
+        }
+        if (mapInstance.getLayer('forest-plots-outline')) {
+            mapInstance.removeLayer('forest-plots-outline');
+        }
+        if (mapInstance.getSource('forest-plots')) {
+            mapInstance.removeSource('forest-plots');
+        }
+
+        // Add empty source initially
+        mapInstance.addSource('forest-plots', {
+            type: 'geojson',
+            data: {
+                type: 'FeatureCollection',
+                features: []
+            }
+        });
+
+        // Add fill layer for forest plots
+        mapInstance.addLayer({
+            id: 'forest-plots-fill',
+            type: 'fill',
+            source: 'forest-plots',
+            paint: {
+                'fill-color': '#228B22',
+                'fill-opacity': 0.3
+            },
+            layout: {
+                'visibility': showForestPlots ? 'visible' : 'none'
+            }
+        });
+
+        // Add outline layer for forest plots
+        mapInstance.addLayer({
+            id: 'forest-plots-outline',
+            type: 'line',
+            source: 'forest-plots',
+            paint: {
+                'line-color': '#006400',
+                'line-width': 1,
+                'line-opacity': 0.8
+            },
+            layout: {
+                'visibility': showForestPlots ? 'visible' : 'none'
+            }
+        });
+    };
+
+    // Update forest plots layer with new data
+    const updateForestPlotsLayer = useCallback(() => {
+        if (!map.current || !mapLoaded || viewportPlots.length === 0) return;
+
+        const currentZoom = map.current.getZoom();
+        let features = viewportPlots.map(plot => ({
+            type: 'Feature' as const,
+            id: plot.id,
+            geometry: plot.geometry,
+            properties: {
+                id: plot.id,
+                codeRegion: plot.codeRegion,
+                codeDepartement: plot.codeDepartement,
+                codeCommune: plot.codeCommune,
+                lieuDit: plot.lieuDit,
+                essences: plot.essences,
+                surfaceHectares: plot.surfaceHectares,
+                typeForet: plot.typeForet
+            }
+        }));
+
+        // Performance optimization: strict feature limits at all zoom levels
+        if (currentZoom < 14) {
+            // Much stricter limits for better performance
+            let maxFeatures;
+            if (currentZoom < 12) {
+                maxFeatures = 0; // No plots below zoom 12
+            } else if (currentZoom < 13) {
+                maxFeatures = 50; // Very limited at zoom 12-13
+            } else {
+                maxFeatures = 200; // Moderate limit at zoom 13-14
+            }
+            
+            if (features.length > maxFeatures) {
+                // Sample features evenly across dataset
+                const step = Math.ceil(features.length / maxFeatures);
+                features = features.filter((_, index) => index % step === 0).slice(0, maxFeatures);
+            }
+        } else {
+            // Even at high zoom, limit to prevent browser crashes
+            const maxFeatures = 1000;
+            if (features.length > maxFeatures) {
+                const step = Math.ceil(features.length / maxFeatures);
+                features = features.filter((_, index) => index % step === 0).slice(0, maxFeatures);
+            }
+        }
+
+        const geojson: GeoJSON.FeatureCollection = {
+            type: 'FeatureCollection',
+            features
+        };
+
+        if (map.current.getSource('forest-plots')) {
+            (map.current.getSource('forest-plots') as mapboxgl.GeoJSONSource).setData(geojson);
+        }
+    }, [viewportPlots, mapLoaded]);
+
+    // Update forest plots when data changes
+    useEffect(() => {
+        updateForestPlotsLayer();
+    }, [updateForestPlotsLayer]);
+
+    // Toggle forest plots visibility
+    const toggleForestPlots = () => {
+        setShowForestPlots(!showForestPlots);
+        if (map.current) {
+            const visibility = !showForestPlots ? 'visible' : 'none';
+            if (map.current.getLayer('forest-plots-fill')) {
+                map.current.setLayoutProperty('forest-plots-fill', 'visibility', visibility);
+            }
+            if (map.current.getLayer('forest-plots-outline')) {
+                map.current.setLayoutProperty('forest-plots-outline', 'visibility', visibility);
+            }
+        }
+    };
+
     const updateWMSLayerVisibility = (zoom: number) => {
         if (!map.current) return;
         wmsLayers.forEach((layer) => {
@@ -278,6 +422,15 @@ export function ForestMap() {
             const shouldBeVisible = layer.visible && zoom >= layer.minZoom && zoom <= layer.maxZoom;
             map.current!.setLayoutProperty(layerId, 'visibility', shouldBeVisible ? 'visible' : 'none');
         });
+
+        // Handle forest plots visibility based on zoom
+        if (map.current.getLayer('forest-plots-fill') && map.current.getLayer('forest-plots-outline')) {
+            // Only show forest plots at zoom levels 12+ for better performance
+            const forestPlotMinZoom = 12;
+            const shouldBeVisible = showForestPlots && zoom >= forestPlotMinZoom;
+            map.current.setLayoutProperty('forest-plots-fill', 'visibility', shouldBeVisible ? 'visible' : 'none');
+            map.current.setLayoutProperty('forest-plots-outline', 'visibility', shouldBeVisible ? 'visible' : 'none');
+        }
     };
 
     const handleToggleLayer = (layerId: string) => {
@@ -516,6 +669,29 @@ export function ForestMap() {
                         <div className="w-4 h-4 border-2 border-[#0b4a59] border-t-transparent rounded-full animate-spin" />
                         Querying layers...
                     </div>
+                </div>
+            )}
+
+            {/* Viewport Forest Data Status */}
+            {showForestPlots && (viewportLoading || viewportError) && (
+                <div className="absolute bottom-20 left-4 z-40 bg-white rounded-lg shadow-lg px-3 py-2 max-w-xs">
+                    {viewportLoading && (
+                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <div className="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                            Loading forest plots...
+                        </div>
+                    )}
+                    {viewportError && (
+                        <div className="flex items-center gap-2 text-xs text-red-600">
+                            <div className="w-3 h-3 bg-red-500 rounded-full" />
+                            Error: {viewportError}
+                        </div>
+                    )}
+                    {viewportPlots.length > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                            {viewportPlots.length} plots loaded (Cache: {cacheSize})
+                        </div>
+                    )}
                 </div>
             )}
 

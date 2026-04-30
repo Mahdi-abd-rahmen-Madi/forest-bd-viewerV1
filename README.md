@@ -240,10 +240,30 @@ pnpm run dev
 - **Performance optimization**: 13x faster import with batch processing
 - **Data validation**: Complete spatial data integrity checks
 
+**✅ COMPLETED: Viewport-based Data Loading**:
+- **Dynamic viewport filtering**: Forest plots load based on current map bounds with 0.05° buffer
+- **Strict zoom-based controls**: Progressive detail levels for optimal performance
+- **Performance limits**: Feature limits prevent browser crashes at all zoom levels
+- **Smart caching**: 3-minute cache with automatic cleanup
+
+**Viewport Rules Implemented**:
+- **Zoom 0-11**: No forest plots (performance optimization)
+- **Zoom 12-12.9**: Maximum 50 plots in viewport
+- **Zoom 13-13.9**: Maximum 200 plots in viewport  
+- **Zoom 14+**: Maximum 1000 plots in viewport
+- **Automatic sampling**: Even distribution across dataset when limits reached
+- **Debounced updates**: 300ms delay to prevent excessive requests
+
+**Performance Features**:
+- Client-side filtering from cached administrative data
+- Feature sampling at low zoom levels
+- Automatic layer visibility management
+- Real-time loading indicators with error handling
+- Cache size monitoring and cleanup
+
 **Remaining Optimizations**:
-- Viewport-based data loading for performance optimization
-- Query result pagination
-- Progressive data loading based on zoom levels
+- Query result pagination for very large datasets
+- Advanced geometry simplification at low zoom levels
 
 #### 3. User-State Persistence ✅ COMPLETED
 **Successfully Implemented**:
