@@ -73,8 +73,20 @@ export const getFeatureInfo = async (
             wmsPreconnectionService.markConnectionUsed(`${GEOSERVER_URL}/${WORKSPACE}/wms`);
             
             const response = await fetch(url);
-            if (!response.ok) return null;
-            return await response.json();
+            if (!response.ok) {
+                console.warn(`WMS HTTP error for ${layerName}: ${response.status} ${response.statusText}`);
+                return null;
+            }
+            
+            const result = await response.json();
+            
+            // Check for WMS service exceptions
+            if (result.type === 'ServiceExceptionReport' || result.ServiceException) {
+                console.warn(`WMS Service Exception for ${layerName}:`, result);
+                return null;
+            }
+            
+            return result;
         } catch (error) {
             console.error(`Error fetching ${layerName}:`, error);
             return null;
@@ -116,7 +128,7 @@ export const queryAllLayers = async (
             fetchFunction: () => getFeatureInfo('department', lng, lat, map)
         },
         {
-            layerName: 'cummune', // Note: keeping the typo to match existing code
+            layerName: 'cummune',
             lng,
             lat,
             fetchFunction: () => getFeatureInfo('cummune', lng, lat, map)

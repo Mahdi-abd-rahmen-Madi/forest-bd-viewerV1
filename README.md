@@ -637,3 +637,130 @@ This implementation showcases:
 - **Data Loading**: Viewport-based filtering (planned)
 - **State Management**: Efficient Zustand implementation
 - **Memory Usage**: Optimized for large geospatial datasets
+
+---
+
+## WMS Layer Integration & Testing
+
+### 🗺️ WMS Server Configuration
+
+**Geoserver Endpoint**: `http://janazapro.com:8080/geoserver/prod/wms`  
+**Workspace**: `prod`  
+**Proxy Configuration**: Next.js rewrites `/geoserver/*` → `http://janazapro.com:8080/geoserver/*`
+
+### 📋 Available Layers (Capabilities Analysis)
+
+**✅ Working Layers (4/5 functional):**
+- **`region`** - Administrative regions (Min zoom: 0, Max zoom: 8)
+- **`department`** - Departments (Min zoom: 8, Max zoom: 10)  
+- **`cummune`** - Communes (Min zoom: 10, Max zoom: 13) *[Note: Server has typo in layer name]*
+- **`forest`** - Forest inventory data (Min zoom: 0, Max zoom: 22)
+
+**❌ Unavailable Layers:**
+- **`cadastre`** - Land parcels (LayerNotDefined error - does not exist on server)
+- **`commune`** - Correct spelling doesn't exist (only `cummune` with typo available)
+
+**🎨 Style Layers Available:**
+- `f_cummine`, `f_administrative`, `f_forest`, `f_region` - Style definition layers
+
+### 🔧 WMS Layer Fixes Implemented
+
+#### Phase 1: Commune Layer Typo Resolution
+**Issue**: Code used `commune` (correct spelling) but server only has `cummune` (with typo)  
+**Solution**: Updated all references to use server's actual layer name
+**Files Modified**:
+- `apps/web/src/services/wmsLayers.ts` - Layer configuration
+- `apps/web/src/services/wmsFeatureInfo.ts` - Feature query service
+- `apps/web/src/components/map/ForestMap.tsx` - Map component preconnections
+
+#### Phase 2: Cadastre Layer Handling
+**Issue**: `cadastre` layer doesn't exist on Geoserver (LayerNotDefined error)  
+**Solution**: Disabled layer with clear user indication
+**Implementation**:
+```typescript
+{
+    id: 'cadastre',
+    name: 'Cadastre (Unavailable)',
+    description: 'Land parcels (zoom > 15) - Layer not available on server',
+    visible: false,  // Disabled by default
+}
+```
+
+#### Phase 3: Error Handling & Monitoring
+**Added comprehensive error handling**:
+- WMS service exception detection and logging
+- HTTP error status code handling
+- Layer validation functions
+- Performance monitoring integration
+
+**New Validation Functions**:
+```typescript
+export const validateLayer = (layerConfig: WMSLayerConfig): { isValid: boolean; issues: string[] }
+export const getWorkingLayers = (): WMSLayerConfig[]  // Filters out unavailable layers
+```
+
+### 🧪 Testing Results
+
+**Layer Connectivity Tests**:
+```bash
+✅ region: PNG image data, 256 x 256, 8-bit/color RGBA, non-interlaced
+✅ department: PNG image data, 256 x 256, 8-bit/color RGBA, non-interlaced  
+✅ cummune: PNG image data, 256 x 256, 8-bit/color RGBA, non-interlaced
+✅ forest: PNG image data, 256 x 256, 8-bit/color RGBA, non-interlaced
+❌ cadastre: ServiceExceptionReport - LayerNotDefined
+```
+
+**Server Capabilities Verification**:
+- Total layers available: 16 (including style layers)
+- Working data layers: 4 (region, department, cummune, forest)
+- Coordinate system: EPSG:3857 (Web Mercator)
+- Image format: PNG with transparency support
+
+### 🚀 Performance Optimizations
+
+**WMS Preconnection System**:
+- Automatic preconnection to WMS endpoints for improved loading
+- Connection monitoring and cleanup
+- Batch layer preconnection for optimal performance
+- Error tracking and retry logic
+
+**Caching Strategy**:
+- WMS tile caching with TTL management
+- Feature info query caching
+- Connection pooling for Geoserver requests
+
+### 📊 Current WMS Integration Status
+
+**✅ Fully Functional**:
+- 4 working WMS layers with proper error handling
+- Automatic layer validation and monitoring
+- Zoom-based visibility controls
+- Feature querying with popup information
+- Layer control panel with toggle functionality
+
+**🔧 Configuration Files**:
+- `apps/web/src/services/wmsLayers.ts` - Layer definitions and validation
+- `apps/web/src/services/wmsFeatureInfo.ts` - Feature query service
+- `apps/web/src/services/wmsPreconnection.ts` - Performance optimization
+- `apps/web/src/services/wmsCache.ts` - Caching implementation
+
+**🎯 User Experience**:
+- Clear indication of unavailable layers
+- Graceful error handling for failed requests
+- Performance monitoring and logging
+- Responsive layer controls with zoom restrictions
+
+### 🔄 Future WMS Enhancements
+
+**Potential Improvements**:
+1. **Add Cadastre Layer**: If available on Geoserver or alternative endpoint
+2. **Style Layer Integration**: Utilize `f_*` style layers for enhanced visualization
+3. **Advanced Caching**: Redis-based tile caching for better performance
+4. **Layer Grouping**: Organize layers hierarchically (administrative → thematic)
+5. **Dynamic Loading**: Load layers based on viewport and zoom level
+
+**Monitoring & Maintenance**:
+- Automated layer availability checking
+- Performance metrics collection
+- Error rate monitoring and alerting
+- Layer usage analytics

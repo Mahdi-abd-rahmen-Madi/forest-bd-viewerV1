@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { wmsPreconnectionService } from '@/services/wmsPreconnection';
 import { area } from '@turf/area';
 import mapboxgl from 'mapbox-gl';
@@ -521,7 +521,7 @@ export function ForestMap() {
 
             {/* Top Right Controls */}
             <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
-                                
+                
                 <button
                     onClick={() => setShowCadastre(!showCadastre)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg border transition-all text-sm ${
