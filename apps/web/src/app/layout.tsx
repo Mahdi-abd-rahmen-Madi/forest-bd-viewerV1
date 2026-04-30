@@ -16,7 +16,7 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="en">
+        <html lang="en" className="h-full overflow-hidden">
         <head>
             {/* WMS Preconnection Optimization */}
             <link rel="dns-prefetch" href="/geoserver" />
@@ -28,7 +28,7 @@ export default function RootLayout({
             <link rel="dns-prefetch" href="//events.mapbox.com" />
             <link rel="preconnect" href="//events.mapbox.com" crossOrigin="anonymous" />
         </head>
-        <body className={inter.className}>
+        <body className={`${inter.className} h-full w-full overflow-hidden`}>
         <Providers>{children}</Providers>
         </body>
         </html>

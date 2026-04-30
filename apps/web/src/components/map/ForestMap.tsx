@@ -413,7 +413,7 @@ export function ForestMap() {
     };
 
     return (
-        <div className="relative w-full h-screen bg-gray-900">
+        <div className="relative w-full h-screen overflow-hidden">
             {/* Base Layer Control - Top Left */}
             <div className="absolute bottom-4 right-4 z-10">
                 <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-2">
@@ -440,7 +440,7 @@ export function ForestMap() {
                 </div>
             </div>
 
-            <div ref={mapContainer} className="absolute inset-0" style={{ width: '100%', height: '100vh' }} />
+            <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
 
             <FilterPanel onRegionSelect={handleRegionNavigate} />
 
@@ -519,8 +519,8 @@ export function ForestMap() {
                 </div>
             )}
 
-            {/* Top Right Controls */}
-            <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+            {/* Controls positioned after Forest Explorer panel */}
+            <div className="absolute top-4 left-[380px] z-10 flex flex-col gap-2">
                 
                 <button
                     onClick={() => setShowCadastre(!showCadastre)}

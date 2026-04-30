@@ -47,7 +47,7 @@ export function SavedPolygonsList({
 
     if (polygons.length === 0) {
         return (
-            <div className="absolute top-65 left-4 z-10 w-80 bg-white rounded-lg shadow-lg border border-gray-200 max-h-[60vh] overflow-y-auto">
+            <div className="absolute top-80 left-4 z-10 w-80 bg-white rounded-lg shadow-lg border border-gray-200 max-h-[60vh] overflow-y-auto">
                 <div className="text-center text-gray-500 py-4">
                     <MapPin size={32} className="mx-auto mb-2 text-gray-300" />
                     <p className="text-sm">No saved polygons yet.</p>
