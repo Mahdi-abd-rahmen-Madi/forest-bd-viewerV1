@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { wmsPreconnectionService } from '@/services/wmsPreconnection';
+import { area } from '@turf/area';
 import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -12,6 +14,7 @@ import { UPDATE_MAP_STATE } from '@/graphql/auth';
 import { GET_MY_POLYGONS, SAVE_POLYGON_MUTATION } from '@/graphql/polygons';
 import { queryAllLayers } from '@/services/wmsFeatureInfo';
 import { WMS_LAYERS, getWMSTileUrl, WMSLayerConfig } from '@/services/wmsLayers';
+import { MapboxDrawCreateEvent, MapboxDrawModeChangeEvent, UpdateMapStateResponse, MyPolygonsQueryResult, FeatureQueryPopupProps, SelectHandlerCallback, User } from '@/types';
 
 import { FilterPanel } from './FilterPanel';
 import { SavePolygonModal } from './SavePolygonModal';
@@ -85,9 +88,23 @@ export function ForestMap() {
     const { lng, lat, zoom, filters, showCadastre, setViewState, setShowCadastre, setFilters } = useMapStore();
     const { user, logout, updateUser } = useAuthStore();
 
-    const { data: savedPolygonsData, refetch: refetchPolygons } = useQuery(GET_MY_POLYGONS);
+    const { data: savedPolygonsData, refetch: refetchPolygons } = useQuery<MyPolygonsQueryResult>(GET_MY_POLYGONS);
     const [updateMapState] = useMutation(UPDATE_MAP_STATE);
     const [savePolygon] = useMutation(SAVE_POLYGON_MUTATION);
+
+    // Initialize WMS preconnections
+    useEffect(() => {
+        // Preconnect to WMS layers based on current configuration
+        wmsPreconnectionService.preconnectWMSLayers(['region', 'department', 'cummune', 'forest']);
+        
+        // Preconnect to additional WMS endpoints
+        wmsPreconnectionService.preconnectFromLayerConfigs([
+            { layerName: 'region' },
+            { layerName: 'department' },
+            { layerName: 'cummune' },
+            { layerName: 'forest' }
+        ]);
+    }, []);
 
     // Initialize map
     useEffect(() => {
@@ -131,7 +148,7 @@ export function ForestMap() {
         map.current.on('zoom', updateZoom);
 
         // Handle polygon creation
-        map.current.on('draw.create', (e) => {
+        map.current.on('draw.create', (e: MapboxDrawCreateEvent) => {
             const geometry = e.features[0].geometry;
             setDrawnGeometry(geometry);
             setShowSaveModal(true);
@@ -139,7 +156,7 @@ export function ForestMap() {
         });
 
         // Handle draw mode changes
-        map.current.on('draw.modechange', (e) => {
+        map.current.on('draw.modechange', (e: MapboxDrawModeChangeEvent) => {
             setIsDrawing(e.mode === 'draw_polygon');
         });
 
@@ -161,7 +178,15 @@ export function ForestMap() {
                         },
                     },
                 }).then((result) => {
-                    updateUser(result.data.updateMapState);
+                    if (result.data) {
+                        const data = result.data as { updateMapState: UpdateMapStateResponse['updateMapState'] };
+                        updateUser({
+                            lastLng: data.updateMapState.lng,
+                            lastLat: data.updateMapState.lat,
+                            lastZoom: data.updateMapState.zoom,
+                            lastFilters: data.updateMapState.filters
+                        } as Partial<User>);
+                    }
                 }).catch(console.error);
             }
         });
@@ -280,11 +305,16 @@ export function ForestMap() {
         if (!drawnGeometry) return;
 
         try {
+            // Calculate area using turf.js directly on main thread
+            const areaInSquareMeters = area(drawnGeometry);
+            const areaHectares = areaInSquareMeters / 10000;
+            
             const { data } = await savePolygon({
                 variables: {
                     input: {
                         name: name.trim(),
-                        geometry: drawnGeometry
+                        geometry: drawnGeometry,
+                        areaHectares: Math.round(areaHectares * 100) / 100
                     }
                 }
             });
@@ -315,11 +345,9 @@ export function ForestMap() {
 
     // Display saved polygons
     useEffect(() => {
-        // @ts-ignore
         if (!map.current || !savedPolygonsData?.myPolygons || !mapLoaded) return;
 
         const timer = setTimeout(() => {
-            // @ts-ignore
             displaySavedPolygonsOnMap(map.current!, savedPolygonsData.myPolygons, false);
         }, 500);
 
@@ -350,10 +378,10 @@ export function ForestMap() {
 
         if (validPolygons.length === 0) return;
 
-        const geojson = {
-            type: 'FeatureCollection',
+        const geojson: GeoJSON.FeatureCollection = {
+            type: 'FeatureCollection' as const,
             features: validPolygons.map((p) => ({
-                type: 'Feature',
+                type: 'Feature' as const,
                 id: p.id,
                 geometry: p.geometry,
                 properties: { name: p.name, area: p.areaHectares, status: p.status },
@@ -464,15 +492,15 @@ export function ForestMap() {
                             lat={queryPopup.lat}
                             data={queryPopup.data}
                             onClose={() => setQueryPopup(null)}
-                            onSelectRegion={(code) => {
+                            onSelectRegion={(code: string) => {
                                 setFilters({ regionCode: code });
                                 setQueryPopup(null);
                             }}
-                            onSelectDepartment={(code) => {
+                            onSelectDepartment={(code: string) => {
                                 setFilters({ ...filters, departementCode: code });
                                 setQueryPopup(null);
                             }}
-                            onSelectCommune={(code) => {
+                            onSelectCommune={(code: string) => {
                                 setFilters({ ...filters, communeCode: code });
                                 setQueryPopup(null);
                             }}
@@ -493,6 +521,7 @@ export function ForestMap() {
 
             {/* Top Right Controls */}
             <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+                                
                 <button
                     onClick={() => setShowCadastre(!showCadastre)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg border transition-all text-sm ${
@@ -511,6 +540,7 @@ export function ForestMap() {
                     <span className="font-medium">Logout</span>
                 </button>
             </div>
-        </div>
+
+                </div>
     );
 }

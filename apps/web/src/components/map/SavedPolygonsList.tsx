@@ -3,10 +3,11 @@
 import { useQuery, useMutation } from '@apollo/client/react';
 import { GET_MY_POLYGONS, DELETE_POLYGON_MUTATION } from '@/graphql/polygons';
 import { MapPin, Trash2, Trees, Clock, AlertCircle, Eye } from 'lucide-react';
+import { MyPolygonsQueryResult, SavedPolygon } from '@/types';
 
 interface SavedPolygonsListProps {
-    onSelectPolygon: (polygon: any) => void;
-    onHighlightPolygon?: (polygon: any) => void;  // New: for map highlighting
+    onSelectPolygon: (polygon: SavedPolygon) => void;
+    onHighlightPolygon?: (polygon: SavedPolygon) => void;  // New: for map highlighting
     selectedPolygonId?: string | null;
 }
 
@@ -15,7 +16,7 @@ export function SavedPolygonsList({
                                       onHighlightPolygon,
                                       selectedPolygonId
                                   }: SavedPolygonsListProps) {
-    const { data, loading, refetch } = useQuery(GET_MY_POLYGONS);
+    const { data, loading, refetch } = useQuery<MyPolygonsQueryResult>(GET_MY_POLYGONS);
     const [deletePolygon] = useMutation(DELETE_POLYGON_MUTATION);
 
     const handleDelete = async (id: string, e: React.MouseEvent) => {
@@ -26,7 +27,7 @@ export function SavedPolygonsList({
         refetch();
     };
 
-    const handleShowOnMap = (polygon: any, e: React.MouseEvent) => {
+    const handleShowOnMap = (polygon: SavedPolygon, e: React.MouseEvent) => {
         e.stopPropagation();
         onHighlightPolygon?.(polygon);
     };

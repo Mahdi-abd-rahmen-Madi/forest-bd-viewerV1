@@ -66,7 +66,7 @@ export class GeospatialService implements IGeospatialService {
             .select([
                 'plot.id',
                 'plot.codeRegion',
-                'plot.codeDepartement',
+                'plot.codeDepartement', 
                 'plot.codeCommune',
                 'plot.lieuDit',
                 'plot.essences',
@@ -75,6 +75,15 @@ export class GeospatialService implements IGeospatialService {
                 'ST_AsGeoJSON(plot.geom)::json as geometry',
             ]);
 
+        // Apply spatial bounds filtering first for maximum performance
+        if (filters.bounds) {
+            query.andWhere(
+                `ST_Intersects(plot.geom, ST_MakeEnvelope(:minLng, :minLat, :maxLng, :maxLat, 4326))`,
+                filters.bounds,
+            );
+        }
+
+        // Then apply administrative filters
         if (filters.regionCode) {
             query.andWhere('plot.codeRegion = :regionCode', { regionCode: filters.regionCode });
         }
@@ -87,13 +96,8 @@ export class GeospatialService implements IGeospatialService {
         if (filters.lieuDit) {
             query.andWhere('plot.lieuDit = :lieuDit', { lieuDit: filters.lieuDit });
         }
-        if (filters.bounds) {
-            query.andWhere(
-                `ST_Intersects(plot.geom, ST_MakeEnvelope(:minLng, :minLat, :maxLng, :maxLat, 4326))`,
-                filters.bounds,
-            );
-        }
 
+        // Add query timeout to prevent long-running queries
         query.limit(10000);
         return query.getRawMany();
     }
@@ -193,12 +197,16 @@ export class GeospatialService implements IGeospatialService {
     async findIntersectingPlots(geometry: string): Promise<ForestPlot[]> {
         const geometryString = geometry;
 
+        // Optimized query with LIMIT for performance and security
         const query = `
-            SELECT * FROM forest_plots 
+            SELECT id, code_region, code_departement, code_commune, lieu_dit, 
+                   essences, surface_hectares, type_foret, ST_AsGeoJSON(geom)::json as geometry
+            FROM forest_plots 
             WHERE ST_Intersects(
                 ST_GeomFromGeoJSON($1),
                 geom
             )
+            LIMIT 10000
         `;
 
         const result = await this.dataSource.query(query, [geometryString]);

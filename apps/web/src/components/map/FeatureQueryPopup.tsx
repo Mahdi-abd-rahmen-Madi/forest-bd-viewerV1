@@ -13,14 +13,20 @@ interface FeatureQueryPopupProps {
         forest: FeatureInfoResponse | null;
     };
     onClose: () => void;
+    onSelectRegion?: (code: string) => void;
+    onSelectDepartment?: (code: string) => void;
+    onSelectCommune?: (code: string) => void;
 }
 
 export function FeatureQueryPopup({
-                                      lng,
-                                      lat,
-                                      data,
-                                      onClose
-                                  }: FeatureQueryPopupProps) {
+    lng,
+    lat,
+    data,
+    onClose,
+    onSelectRegion,
+    onSelectDepartment,
+    onSelectCommune
+}: FeatureQueryPopupProps) {
     const hasAnyData = data.region || data.department || data.commune || data.forest;
 
     // Helper to safely get properties
@@ -79,7 +85,7 @@ export function FeatureQueryPopup({
     return (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 w-96 max-h-[80vh] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="p-3 bg-gradient-to-r from-slate-700 to-slate-800 text-white flex items-center justify-between shrink-0">
+            <div className="p-3 bg-linear-to-r from-slate-700 to-slate-800 text-white flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                     <MapPinned size={18} />
                     <span className="font-semibold text-sm">Location Details</span>
@@ -105,7 +111,7 @@ export function FeatureQueryPopup({
                 ) : (
                     <>
                         {hasForestData && (
-                            <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-200 shadow-sm">
+                            <div className="p-4 rounded-xl bg-linear-to-br from-emerald-50 to-teal-50 border-2 border-emerald-200 shadow-sm">
                                 <div className="flex items-center gap-3 mb-3 pb-2 border-b border-emerald-200">
                                     <div className="p-2 bg-emerald-100 rounded-lg">
                                         <Trees size={22} className="text-emerald-600" />
@@ -166,7 +172,7 @@ export function FeatureQueryPopup({
 
                         {/* ==================== REGION SECTION (Dynamic) ==================== */}
                         {Object.keys(regionProps).length > 0 && (
-                            <div className="p-4 rounded-xl bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-200 shadow-sm">
+                            <div className="p-4 rounded-xl bg-linear-to-br from-red-50 to-rose-50 border-2 border-red-200 shadow-sm">
                                 <div className="flex items-center gap-3 mb-3 pb-2 border-b border-red-200">
                                     <div className="p-2 bg-red-100 rounded-lg">
                                         <Landmark size={22} className="text-red-600" />
@@ -194,7 +200,7 @@ export function FeatureQueryPopup({
 
                         {/* ==================== DEPARTMENT SECTION (Dynamic) ==================== */}
                         {Object.keys(deptProps).length > 0 && (
-                            <div className="p-4 rounded-xl bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 shadow-sm">
+                            <div className="p-4 rounded-xl bg-linear-to-br from-orange-50 to-amber-50 border-2 border-orange-200 shadow-sm">
                                 <div className="flex items-center gap-3 mb-3 pb-2 border-b border-orange-200">
                                     <div className="p-2 bg-orange-100 rounded-lg">
                                         <Building2 size={22} className="text-orange-600" />
@@ -222,7 +228,7 @@ export function FeatureQueryPopup({
 
                         {/* ==================== COMMUNE SECTION (Dynamic) ==================== */}
                         {Object.keys(communeProps).length > 0 && (
-                            <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-sm">
+                            <div className="p-4 rounded-xl bg-linear-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-sm">
                                 <div className="flex items-center gap-3 mb-3 pb-2 border-b border-blue-200">
                                     <div className="p-2 bg-blue-100 rounded-lg">
                                         <Home size={22} className="text-blue-600" />

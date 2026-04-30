@@ -17,6 +17,17 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en">
+        <head>
+            {/* WMS Preconnection Optimization */}
+            <link rel="dns-prefetch" href="/geoserver" />
+            <link rel="preconnect" href="/geoserver" crossOrigin="anonymous" />
+            
+            {/* Additional preconnections for common external resources */}
+            <link rel="dns-prefetch" href="//api.mapbox.com" />
+            <link rel="preconnect" href="//api.mapbox.com" crossOrigin="anonymous" />
+            <link rel="dns-prefetch" href="//events.mapbox.com" />
+            <link rel="preconnect" href="//events.mapbox.com" crossOrigin="anonymous" />
+        </head>
         <body className={inter.className}>
         <Providers>{children}</Providers>
         </body>

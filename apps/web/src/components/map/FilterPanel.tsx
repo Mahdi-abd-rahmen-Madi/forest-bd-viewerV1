@@ -10,6 +10,7 @@ import {
     GET_LIEUX_DITS
 } from '@/graphql/geospatial';
 import { MapPin, TreePine, ChevronRight, RotateCcw } from 'lucide-react';
+import { RegionsQueryResult, DepartementsQueryResult, CommunesQueryResult, LieuxDitsQueryResult } from '@/types';
 
 // Hardcoded regions with center coordinates and zoom levels
 const REGIONS = [
@@ -43,10 +44,10 @@ interface FilterPanelProps {
 export function FilterPanel({ onRegionSelect }: FilterPanelProps) {
     const { filters, setFilters, resetFilters } = useMapStore();
 
-    const { data: regionsData, loading: loadingRegions } = useQuery(GET_REGIONS);
-    const [getDepartements, { data: deptData, loading: loadingDepts }] = useLazyQuery(GET_DEPARTEMENTS);
-    const [getCommunes, { data: communeData, loading: loadingCommunes }] = useLazyQuery(GET_COMMUNES);
-    const [getLieuxDits, { data: lieuxDitsData, loading: loadingLieuxDits }] = useLazyQuery(GET_LIEUX_DITS);
+    const { data: regionsData, loading: loadingRegions } = useQuery<RegionsQueryResult>(GET_REGIONS);
+    const [getDepartements, { data: deptData, loading: loadingDepts }] = useLazyQuery<DepartementsQueryResult>(GET_DEPARTEMENTS);
+    const [getCommunes, { data: communeData, loading: loadingCommunes }] = useLazyQuery<CommunesQueryResult>(GET_COMMUNES);
+    const [getLieuxDits, { data: lieuxDitsData, loading: loadingLieuxDits }] = useLazyQuery<LieuxDitsQueryResult>(GET_LIEUX_DITS);
 
     useEffect(() => {
         if (filters.regionCode) {
@@ -145,13 +146,17 @@ export function FilterPanel({ onRegionSelect }: FilterPanelProps) {
                                 ))}
                             </optgroup>
 
-                            {regionsData?.regions?.length > 0 && (
-                                <optgroup label="Other Regions">
-                                    {regionsData.regions.map((code: string) => (
-                                        <option key={code} value={code}>Region {code}</option>
-                                    ))}
-                                </optgroup>
-                            )}
+                            {(() => {
+                                const regions = regionsData?.regions;
+                                if (!regions || regions.length === 0) return null;
+                                return (
+                                    <optgroup label="Other Regions">
+                                        {regions.map((code: string) => (
+                                            <option key={code} value={code}>Region {code}</option>
+                                        ))}
+                                    </optgroup>
+                                );
+                            })()}
                         </select>
                         <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-gray-400 pointer-events-none" size={16} />
                     </div>
@@ -172,9 +177,9 @@ export function FilterPanel({ onRegionSelect }: FilterPanelProps) {
                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0b4a59] focus:border-transparent outline-none appearance-none cursor-pointer disabled:opacity-50"
                             >
                                 <option value="">Select a department...</option>
-                                {deptData?.departements.map((code: string) => (
+                                {deptData?.departements?.map((code: string) => (
                                     <option key={code} value={code}>Department {code}</option>
-                                ))}
+                                )) || []}
                             </select>
                             <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-gray-400 pointer-events-none" size={16} />
                         </div>
@@ -196,9 +201,9 @@ export function FilterPanel({ onRegionSelect }: FilterPanelProps) {
                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0b4a59] focus:border-transparent outline-none appearance-none cursor-pointer disabled:opacity-50"
                             >
                                 <option value="">Select a commune...</option>
-                                {communeData?.communes.map((code: string) => (
+                                {communeData?.communes?.map((code: string) => (
                                     <option key={code} value={code}>Commune {code}</option>
-                                ))}
+                                )) || []}
                             </select>
                             <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-gray-400 pointer-events-none" size={16} />
                         </div>
@@ -220,9 +225,9 @@ export function FilterPanel({ onRegionSelect }: FilterPanelProps) {
                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0b4a59] focus:border-transparent outline-none appearance-none cursor-pointer disabled:opacity-50"
                             >
                                 <option value="">Select a lieu dit...</option>
-                                {lieuxDitsData?.lieuxDits.map((name: string) => (
+                                {lieuxDitsData?.lieuxDits?.map((name: string) => (
                                     <option key={name} value={name}>{name}</option>
-                                ))}
+                                )) || []}
                             </select>
                             <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-gray-400 pointer-events-none" size={16} />
                         </div>
