@@ -45,6 +45,7 @@ class ShapefileImporter {
     this.importedCount = 0;
     this.errorCount = 0;
     this.startTime = Date.now();
+    this.currentDepartment = null;
   }
 
   async initializeDatabase() {
@@ -92,55 +93,100 @@ class ShapefileImporter {
   }
 
   async findShapefiles() {
-    console.log('🔍 Scanning for shapefiles...');
+    console.log('🔍 Scanning for department directories...');
     
-    const shapefiles = [];
-    const processedDirs = new Set();
+    const departments = [];
+    const items = fs.readdirSync(shapefileDir);
     
-    // Find all directories containing shapefiles
-    const scanDirectory = (dir) => {
-      const items = fs.readdirSync(dir);
+    for (const item of items) {
+      const fullPath = path.join(shapefileDir, item);
+      const stat = fs.statSync(fullPath);
       
-      for (const item of items) {
-        const fullPath = path.join(dir, item);
-        const stat = fs.statSync(fullPath);
-        
-        if (stat.isDirectory()) {
-          // Skip duplicate directories
-          const dirKey = path.relative(shapefileDir, fullPath);
-          if (processedDirs.has(dirKey)) {
-            console.log(`⏭️  Skipping duplicate directory: ${dirKey}`);
-            continue;
-          }
-          processedDirs.add(dirKey);
-          scanDirectory(fullPath);
-        } else if (item.endsWith('.shp')) {
-          // Validate shapefile is not empty
-          const shpStat = fs.statSync(fullPath);
-          if (shpStat.size === 0) {
-            console.log(`⚠️  Skipping empty shapefile: ${fullPath}`);
-            continue;
-          }
+      if (stat.isDirectory() && item.startsWith('D')) {
+        // Extract department code from directory name (e.g., D014_Calvados)
+        const deptMatch = item.match(/^(D\d{3})/);
+        if (deptMatch) {
+          const deptCode = deptMatch[1];
+          const deptName = item.replace(`${deptCode}_`, '') || deptCode;
           
-          // Check for required companion files
-          const basePath = fullPath.replace('.shp', '');
-          const dbfExists = fs.existsSync(`${basePath}.dbf`);
-          const shxExists = fs.existsSync(`${basePath}.shx`);
+          console.log(`📂 Scanning department: ${deptCode} ${deptName}`);
           
-          if (!dbfExists || !shxExists) {
-            console.log(`⚠️  Skipping incomplete shapefile: ${fullPath}`);
-            continue;
+          const shapefiles = this.findShapefilesInDepartment(fullPath);
+          
+          if (shapefiles.length > 0) {
+            departments.push({
+              code: deptCode,
+              name: deptName,
+              path: fullPath,
+              shapefiles: shapefiles
+            });
+            console.log(`✅ ${deptCode}: Found ${shapefiles.length} shapefile(s)`);
+          } else {
+            console.log(`⚠️  ${deptCode}: No valid shapefiles found`);
           }
-          
-          shapefiles.push(fullPath);
         }
+      }
+    }
+    
+    // Sort by department code
+    departments.sort((a, b) => a.code.localeCompare(b.code));
+    
+    console.log(`\n📁 Found ${departments.length} department(s) with shapefiles:`);
+    departments.forEach(dept => {
+      console.log(`   - ${dept.code} ${dept.name}: ${dept.shapefiles.length} shapefile(s)`);
+    });
+    
+    return departments;
+  }
+
+  findShapefilesInDepartment(deptPath) {
+    const shapefiles = [];
+    
+    const scanDirectory = (dir) => {
+      try {
+        const items = fs.readdirSync(dir);
+        
+        for (const item of items) {
+          const fullPath = path.join(dir, item);
+          const stat = fs.statSync(fullPath);
+          
+          if (stat.isDirectory()) {
+            scanDirectory(fullPath);
+          } else if (item.endsWith('.shp')) {
+            // Validate shapefile is not empty
+            const shpStat = fs.statSync(fullPath);
+            if (shpStat.size === 0) {
+              console.log(`⚠️  Skipping empty shapefile: ${path.basename(fullPath)}`);
+              continue;
+            }
+            
+            // Check for required companion files
+            const basePath = fullPath.replace('.shp', '');
+            const dbfExists = fs.existsSync(`${basePath}.dbf`);
+            const shxExists = fs.existsSync(`${basePath}.shx`);
+            
+            if (!dbfExists || !shxExists) {
+              console.log(`⚠️  Skipping incomplete shapefile: ${path.basename(fullPath)}`);
+              continue;
+            }
+            
+            shapefiles.push(fullPath);
+          }
+        }
+      } catch (error) {
+        // Skip directories we can't read
+        console.log(`⚠️  Cannot read directory: ${dir}`);
       }
     };
     
-    scanDirectory(shapefileDir);
-    
-    console.log(`📁 Found ${shapefiles.length} valid shapefile(s):`);
-    shapefiles.forEach(file => console.log(`   - ${file}`));
+    // Look for BDFORET directory first
+    const bdforetPath = path.join(deptPath, 'BDFORET');
+    if (fs.existsSync(bdforetPath)) {
+      scanDirectory(bdforetPath);
+    } else {
+      // Scan department directory directly
+      scanDirectory(deptPath);
+    }
     
     return shapefiles;
   }
@@ -182,10 +228,10 @@ class ShapefileImporter {
     }
   }
 
-  mapShapefileToEntity(properties, geometry) {
+  mapShapefileToEntity(properties, geometry, departmentCode) {
     try {
-      // Generate unique ID
-      const id = `forest_${this.importedCount + 1}`;
+      // Generate unique ID with department prefix
+      const id = `forest_${departmentCode}_${this.importedCount + 1}`;
       
       // Calculate surface area from geometry in WGS84
       const surfaceHectares = this.calculateSurfaceArea(geometry);
@@ -195,7 +241,7 @@ class ShapefileImporter {
       const entity = {
         id,
         codeRegion: properties.CODE_REG || null,
-        codeDepartement: properties.CODE_DEP || null,
+        codeDepartement: properties.CODE_DEP || departmentCode.replace('D', ''),
         codeCommune: properties.CODE_COM || null,
         lieuDit: properties.LIEU_DIT || null,
         geom: geometry,
@@ -282,6 +328,53 @@ class ShapefileImporter {
     return isNaN(num) ? null : num;
   }
 
+  async importDepartment(department) {
+    console.log(`\n🌲 Importing Department: ${department.code} ${department.name}`);
+    console.log(`📂 Path: ${department.path}`);
+    console.log(`📁 Shapefiles: ${department.shapefiles.length}`);
+    
+    const deptStartTime = Date.now();
+    const deptImportedCount = this.importedCount;
+    const deptErrorCount = this.errorCount;
+    
+    this.currentDepartment = department.code;
+    
+    try {
+      for (const shapefilePath of department.shapefiles) {
+        await this.importShapefile(shapefilePath);
+      }
+      
+      const deptEndTime = Date.now();
+      const deptDuration = ((deptEndTime - deptStartTime) / 1000).toFixed(1);
+      const deptFeaturesImported = this.importedCount - deptImportedCount;
+      const deptErrors = this.errorCount - deptErrorCount;
+      
+      console.log(`\n✅ Department ${department.code} completed:`);
+      console.log(`   - Features imported: ${deptFeaturesImported.toLocaleString()}`);
+      console.log(`   - Errors: ${deptErrors}`);
+      console.log(`   - Duration: ${deptDuration}s`);
+      
+      return {
+        success: true,
+        department: department.code,
+        featuresImported: deptFeaturesImported,
+        errors: deptErrors,
+        duration: deptDuration
+      };
+      
+    } catch (error) {
+      console.error(`❌ Failed to import department ${department.code}:`, error);
+      
+      return {
+        success: false,
+        department: department.code,
+        error: error.message
+      };
+    } finally {
+      this.currentDepartment = null;
+    }
+  }
+
   async importShapefile(shapefilePath) {
     console.log(`📥 Importing: ${path.basename(shapefilePath)}`);
     
@@ -305,7 +398,7 @@ class ShapefileImporter {
           }
           
           // Map to entity
-          const entity = this.mapShapefileToEntity(properties, transformedGeometry);
+          const entity = this.mapShapefileToEntity(properties, transformedGeometry, this.currentDepartment);
           if (entity) {
             batch.push(entity);
             this.importedCount++;
@@ -368,21 +461,39 @@ class ShapefileImporter {
     }
   }
 
-  async finalizeImport() {
+  async finalizeImport(departmentResults) {
     const endTime = Date.now();
     const duration = ((endTime - this.startTime) / 1000).toFixed(2);
     
-    console.log('\n🎉 Import Summary:');
-    console.log(`   - Features imported: ${this.importedCount}`);
-    console.log(`   - Errors: ${this.errorCount}`);
-    console.log(`   - Duration: ${duration}s`);
+    console.log('\n🎉 Multi-Department Import Summary');
+    console.log('===================================');
+    
+    // Department-level summary
+    console.log('\n📊 Department Results:');
+    departmentResults.forEach(result => {
+      if (result.success) {
+        console.log(`   ✅ ${result.department}: ${result.featuresImported.toLocaleString()} features, ${result.errors} errors, ${result.duration}s`);
+      } else {
+        console.log(`   ❌ ${result.department}: Failed - ${result.error}`);
+      }
+    });
+    
+    // Overall summary
+    const successfulDepts = departmentResults.filter(r => r.success).length;
+    const totalFeatures = departmentResults.reduce((sum, r) => sum + (r.featuresImported || 0), 0);
+    
+    console.log(`\n📈 Overall Summary:`);
+    console.log(`   - Departments processed: ${successfulDepts}/${departmentResults.length}`);
+    console.log(`   - Total features imported: ${this.importedCount.toLocaleString()}`);
+    console.log(`   - Total errors: ${this.errorCount}`);
+    console.log(`   - Total duration: ${duration}s`);
     
     // Verify import
     const dbCount = await dataSource.query('SELECT COUNT(*) FROM forest_plots');
     console.log(`   - Database count: ${dbCount[0].count}`);
     
     if (this.importedCount > 0) {
-      console.log('\n✅ Import completed successfully!');
+      console.log('\n✅ Multi-department import completed successfully!');
       
       // Data validation
       console.log('🔍 Validating imported data...');
@@ -400,6 +511,20 @@ class ShapefileImporter {
       const coords = coordCheck[0];
       console.log(`📍 Coordinate range: Lon(${coords.min_lon} to ${coords.max_lon}), Lat(${coords.min_lat} to ${coords.max_lat})`);
       
+      // Department coverage
+      const deptCoverage = await dataSource.query(`
+        SELECT code_departement, COUNT(*) as count 
+        FROM forest_plots 
+        WHERE code_departement IS NOT NULL 
+        GROUP BY code_departement 
+        ORDER BY code_departement
+      `);
+      
+      console.log('\n🏛️  Department Coverage:');
+      deptCoverage.forEach(row => {
+        console.log(`   - D${row.code_departement}: ${row.count.toLocaleString()} plots`);
+      });
+      
       // Validate geometry types
       const geomCheck = await dataSource.query(`
         SELECT ST_GeometryType(geom) as geom_type, COUNT(*) as count 
@@ -407,7 +532,7 @@ class ShapefileImporter {
         GROUP BY ST_GeometryType(geom)
       `);
       
-      console.log('📐 Geometry types:');
+      console.log('\n📐 Geometry types:');
       geomCheck.forEach(row => console.log(`   - ${row.geom_type}: ${row.count} features`));
       
       // Check forest types
@@ -417,25 +542,14 @@ class ShapefileImporter {
         WHERE type_foret IS NOT NULL 
         GROUP BY type_foret 
         ORDER BY count DESC 
-        LIMIT 5
+        LIMIT 10
       `);
       
-      console.log('🌲 Top forest types:');
+      console.log('\n🌲 Top forest types:');
       forestTypes.forEach(row => console.log(`   - ${row.type_foret}: ${row.count} features`));
       
-      // Test spatial query with correct bounding box for Vosges department
-      console.log('🧪 Testing spatial query...');
-      const testResult = await dataSource.query(`
-        SELECT * FROM forest_plots 
-        WHERE ST_Intersects(geom, ST_MakeEnvelope(5.5, 48.0, 7.5, 49.0, 4326))
-        LIMIT 5
-      `);
-      
-      console.log(`📍 Found ${testResult.length} test features in bounding box`);
-      
-      if (testResult.length > 0) {
-        console.log('✅ Spatial validation passed - data is properly imported and queryable!');
-      }
+      console.log('\n✅ Multi-department import completed successfully!');
+      console.log('� Ready for forest analysis across all imported departments!');
     }
   }
 
@@ -443,18 +557,24 @@ class ShapefileImporter {
     try {
       await this.initializeDatabase();
       
-      const shapefiles = await this.findShapefiles();
+      const departments = await this.findShapefiles();
       
-      if (shapefiles.length === 0) {
-        console.log('❌ No shapefiles found');
+      if (departments.length === 0) {
+        console.log('❌ No department directories found');
+        console.log('💡 Run: node scripts/extract-departments.js first');
         return;
       }
       
-      for (const shapefile of shapefiles) {
-        await this.importShapefile(shapefile);
+      console.log(`\n🚀 Starting import of ${departments.length} departments...\n`);
+      
+      const departmentResults = [];
+      
+      for (const department of departments) {
+        const result = await this.importDepartment(department);
+        departmentResults.push(result);
       }
       
-      await this.finalizeImport();
+      await this.finalizeImport(departmentResults);
       
     } catch (error) {
       console.error('❌ Import failed:', error);

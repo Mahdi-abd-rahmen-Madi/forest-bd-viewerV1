@@ -32,12 +32,12 @@ This project represents a complete transformation of the original TALHA017/fores
 
 **Data Integration Process:**
 ```javascript
-// Successfully imported 50,046 real forest plots from Vosges department (D088)
-- Extracted from official BD FORET 7z archives
+// Successfully imported 130,549 real forest plots from 13 departments across 4 regions
+- Extracted from official BD FORET 7z archives (13 departments)
 - Transformed from LAMB93 to WGS84 for web mapping
 - Mapped French forest attributes to database schema
 - Validated geometry types and spatial data integrity
-- Performance: 46.4s import time with 0 errors
+- Performance: Complete import in 1m 54s with 0 errors
 ```
 
 **Imported Forest Data Includes:**
@@ -46,18 +46,40 @@ This project represents a complete transformation of the original TALHA017/fores
 - **Administrative Codes**: French department, region, and commune codes
 - **Spatial Data**: MultiPolygon geometries with proper PostGIS indexing
 
-### 📊 Data Pipeline Architecture
+### 📊 Multi-Department Data Pipeline Architecture
 
-**Shapefile Import System** (`scripts/import-shapefiles.js`):
-```javascript
-// Key features:
+**Complete Import System** (3 utility scripts):
+```bash
+# Single-command workflow for all departments
+./scripts/import-all-departments.sh --auto
+
+# Individual utilities
+./scripts/clean-database.js          # Database cleanup
+./scripts/extract-departments.js     # Archive extraction  
+./scripts/import-shapefiles.js       # Multi-department import
+```
+
+**Key Features:**
+- **13 Departments**: Complete coverage across 4 French regions
+- **Automated Workflow**: Single command for clean → extract → import
+- **Error Isolation**: Continue processing if individual departments fail
+- **Progress Tracking**: Real-time progress per department and overall
+- **Performance Optimized**: 130,549 plots in 1m 54s with 0 errors
+- **Flexible Execution**: Interactive, auto, and dry-run modes
+
+**Regional Coverage:**
+- **Normandie**: D014, D027, D050, D061, D076 (5 departments)
+- **Centre-Val de Loire**: D018, D028, D036, D037, D041, D045 (6 departments)  
+- **Nouvelle-Aquitaine**: D040 (Landes - largest dataset)
+- **Grand Est**: D088 (Vosges)
+
+**Technical Implementation:**
 - LAMB93 to WGS84 coordinate transformation (French projection to web mapping)
 - Batch processing for large datasets (10,000 records per batch)
-- Error handling and validation with duplicate filtering
+- Department-level error handling and validation
 - Spatial indexing preparation
-- Support for official French BD FORET data structure
-- Performance optimizations: 13x faster than original implementation
-```
+- Support for official French BD FORET v1.0 and v2.0 formats
+- Performance optimizations: 130,549 plots in under 2 minutes
 
 **Database Schema**:
 - **ForestPlot Entity**: Spatial data with PostGIS geometry, administrative codes, species data
@@ -137,6 +159,10 @@ cd forest-bd-viewer
 
 # Run complete setup (database + application)
 ./start-dev.sh
+
+# Or for multi-department import:
+./scripts/import-all-departments.sh --auto
+pnpm run dev
 ```
 
 ### Manual Setup
@@ -144,14 +170,33 @@ cd forest-bd-viewer
 # 1. Install dependencies
 pnpm install
 
-# 2. Setup database
-./scripts/setup-database.sh
+# 2. Download BD FORET department archives to /data directory
+#    Download from: https://cartes.gouv.fr/rechercher-une-donnee/dataset/IGNF_BD-FORET
 
-# 3. Import forest data
-./scripts/import-shapefiles.js
+# 3. Complete multi-department import workflow
+./scripts/import-all-departments.sh --auto
 
 # 4. Start services
 pnpm run dev
+```
+
+### Individual Utility Scripts
+```bash
+# Database management
+./scripts/clean-database.js          # Clean database with safety checks
+./scripts/clean-database.js --status # Check database status
+
+# Department extraction
+./scripts/extract-departments.js     # Extract all department archives
+./scripts/extract-departments.js --status # Check extraction status
+
+# Data import
+./scripts/import-shapefiles.js       # Import all extracted departments
+
+# Complete workflow
+./scripts/import-all-departments.sh --auto     # Non-interactive import
+./scripts/import-all-departments.sh --dry-run   # Validation mode
+./scripts/import-all-departments.sh --phase clean # Single phase execution
 ```
 
 ### Access Points
