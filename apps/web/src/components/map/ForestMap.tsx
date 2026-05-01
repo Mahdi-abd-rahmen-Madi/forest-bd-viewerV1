@@ -23,8 +23,8 @@ import { PolygonResultsPanel } from './PolygonResultsPanel';
 import { SavedPolygonsList } from './SavedPolygonsList';
 import { LayerControlPanel } from './LayerControlPanel';
 import { FeatureQueryPopup } from './FeatureQueryPopup';
-import { VosgesCoverageOverlay } from './VosgesCoverageOverlay';
-import { getVosgesCoverageGeoJSON, VOSGES_CENTER } from '@/utils/vosgesGeometry';
+import { ForestCoverageOverlay } from './ForestCoverageOverlay';
+import { getVosgesCoverageGeoJSON, VOSGES_CENTER, FOREST_REGIONS, getRegionByCode } from '@/utils/forestCoverageGeometry';
 
 import { Layers, LogOut, Map as MapIcon, MapPin, Info, Satellite, Mountain, Sun, Moon } from 'lucide-react';
 
@@ -141,43 +141,48 @@ export function ForestMap() {
 
         // Add Vosges coverage source
         const vosgesGeoJSON = getVosgesCoverageGeoJSON();
-        mapInstance.addSource('vosges-coverage', {
-            type: 'geojson',
-            data: {
-                type: 'FeatureCollection',
-                features: [vosgesGeoJSON]
-            }
-        });
+        if (vosgesGeoJSON) {
+            mapInstance.addSource('vosges-coverage', {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: [vosgesGeoJSON]
+                }
+            });
+        }
 
-        // Add fill layer for Vosges coverage area
-        mapInstance.addLayer({
-            id: 'vosges-coverage-fill',
-            type: 'fill',
-            source: 'vosges-coverage',
-            paint: {
-                'fill-color': '#3b82f6',
-                'fill-opacity': 0.1
-            },
-            layout: {
-                'visibility': showVosgesOutline ? 'visible' : 'none'
-            }
-        });
+        // Add Vosges coverage layers only if source was created
+        if (vosgesGeoJSON) {
+            // Add fill layer for Vosges coverage area
+            mapInstance.addLayer({
+                id: 'vosges-coverage-fill',
+                type: 'fill',
+                source: 'vosges-coverage',
+                paint: {
+                    'fill-color': '#3b82f6',
+                    'fill-opacity': 0.1
+                },
+                layout: {
+                    'visibility': showVosgesOutline ? 'visible' : 'none'
+                }
+            });
 
-        // Add outline layer for Vosges coverage area
-        mapInstance.addLayer({
-            id: 'vosges-coverage-outline',
-            type: 'line',
-            source: 'vosges-coverage',
-            paint: {
-                'line-color': '#3b82f6',
-                'line-width': 2,
-                'line-opacity': 0.8,
-                'line-dasharray': [5, 5]
-            },
-            layout: {
-                'visibility': showVosgesOutline ? 'visible' : 'none'
-            }
-        });
+            // Add outline layer for Vosges coverage area
+            mapInstance.addLayer({
+                id: 'vosges-coverage-outline',
+                type: 'line',
+                source: 'vosges-coverage',
+                paint: {
+                    'line-color': '#3b82f6',
+                    'line-width': 2,
+                    'line-opacity': 0.8,
+                    'line-dasharray': [5, 5]
+                },
+                layout: {
+                    'visibility': showVosgesOutline ? 'visible' : 'none'
+                }
+            });
+        }
     };
 
     // Initialize map
@@ -581,14 +586,22 @@ export function ForestMap() {
         });
     };
 
-    // Handle navigation to Vosges region
-    const handleNavigateToVosges = () => {
+    // Handle navigation to specific region
+    const handleNavigateToRegion = (regionCode: string) => {
         if (!map.current) return;
+        const region = getRegionByCode(regionCode);
+        if (!region) return;
+        
         map.current.flyTo({
-            center: [VOSGES_CENTER.lng, VOSGES_CENTER.lat],
-            zoom: VOSGES_CENTER.zoom,
+            center: [region.center.lng, region.center.lat],
+            zoom: region.center.zoom,
             essential: true
         });
+    };
+
+    // Handle navigation to Vosges region (legacy)
+    const handleNavigateToVosges = () => {
+        handleNavigateToRegion('GRAND_EST');
     };
 
     // Handle fly to polygon
@@ -892,11 +905,11 @@ export function ForestMap() {
                 </div>
             )}
 
-            {/* Vosges Coverage Info Overlay */}
-            <VosgesCoverageOverlay
+            {/* Forest Coverage Info Overlay */}
+            <ForestCoverageOverlay
                 visible={showCoverageOverlay}
                 onClose={() => setShowCoverageOverlay(false)}
-                onNavigateToVosges={handleNavigateToVosges}
+                onNavigateToRegion={handleNavigateToRegion}
             />
 
             {/* Query Loading Indicator */}
@@ -948,7 +961,7 @@ export function ForestMap() {
 
                     <button
                         onClick={() => setShowCoverageOverlay(true)}
-                        className="flex items-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-lg shadow-lg border border-amber-500 hover:bg-amber-600 transition-all text-sm"
+                        className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg shadow-lg border border-green-500 hover:bg-green-600 transition-all text-sm"
                     >
                         <Info size={18} />
                         <span className="font-medium">Coverage Info</span>
@@ -958,11 +971,11 @@ export function ForestMap() {
                 {/* Second row - Vosges Navigation and Logout */}
                 <div className="flex gap-2">
                     <button
-                        onClick={handleNavigateToVosges}
-                        className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg shadow-lg border border-blue-500 hover:bg-blue-600 transition-all text-sm"
+                        onClick={() => setShowCoverageOverlay(true)}
+                        className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg shadow-lg border border-green-500 hover:bg-green-600 transition-all text-sm"
                     >
                         <MapPin size={18} />
-                        <span className="font-medium">Navigate to Vosges</span>
+                        <span className="font-medium">Explore Forest Regions</span>
                     </button>
 
                     <button

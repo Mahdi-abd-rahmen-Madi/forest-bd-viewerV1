@@ -341,19 +341,37 @@ const speciesPatterns = {
 ## 🗺️ Geographic Data Coverage Information
 
 ### Current Database Coverage
-**Imported Departments**: 13 departments across 4 French regions
+**Imported Departments**: 13 departments across 4 French regions with complete forest analysis capabilities
 - **Normandie**: D014, D027, D050, D061, D076 (5 departments)
 - **Centre-Val de Loire**: D018, D028, D036, D037, D045 (5 departments)  
 - **Nouvelle-Aquitaine**: D040 (Landes)
 - **Grand Est**: D088 (Vosges)
 
-**Total Forest Plots**: 130,549 plots with complete species data
-**Coordinate Coverage**: Multiple regions across France (not limited to single area)
+**Total Forest Plots**: 130,549 plots with complete species data and spatial analysis
+**Coordinate Coverage**: Multiple regions across France with comprehensive coverage bounds
+- **Longitude**: -1.79° to 8.23°E (spanning from western to eastern France)
+- **Latitude**: 43.18° to 50.09°N (spanning from southern to northern France)
+
+### Multi-Regional Forest Analysis
+**Available Features**: Forest cover and species analysis is available in all 4 regions
+- **Interactive Navigation**: Users can navigate to any of the 4 regions via the "Explore Forest Regions" interface
+- **Species Distribution**: Complete species analysis available for all 130,549 forest plots
+- **Regional Comparison**: Compare forest types and species distribution across different French regions
+- **Polygon Drawing**: Draw and analyze forest areas in any covered region with instant results
 
 ### Map Layer vs Backend Data
 **WMS Layers**: Show forest coverage across France from national GeoServer
-**Backend Database**: Contains detailed species analysis data for imported departments
-**User Experience**: Drawing polygons works with species analysis in all covered regions
+**Backend Database**: Contains detailed species analysis data for all 13 imported departments
+**User Experience**: Drawing polygons works with species analysis in all covered regions with real-time results
+
+### Regional Navigation Features
+**Quick Navigation**: One-click navigation to any of the 4 forest regions
+- **Normandie**: Northwestern France with mixed coastal and inland forests
+- **Centre-Val de Loire**: Central France with diverse forest ecosystems
+- **Grand Est**: Eastern France including Vosges mountain forests
+- **Nouvelle-Aquitaine**: Southwestern France with extensive Landes forest
+
+**Coverage Information**: Interactive coverage overlay shows detailed information about each region including departments, bounds, and navigation options
 
 ---
 
