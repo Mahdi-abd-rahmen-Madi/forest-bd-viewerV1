@@ -50,18 +50,24 @@ class WMSCache {
     ): Promise<FeatureInfoResponse | null> {
         const key = this.generateKey(layerName, lng, lat);
         const now = Date.now();
+        
+        console.log(`🔍 WMS Cache: Request for ${layerName} at ${lng}, ${lat} (key: ${key})`);
 
         // Check cache first
         const cached = this.cache.get(key);
         if (cached && now < cached.expiresAt) {
+            console.log(`✅ WMS Cache: Cache hit for ${layerName}`);
             return cached.data;
         }
 
         // Check if there's already a pending request for this key
         const pending = this.pendingRequests.get(key);
         if (pending) {
+            console.log(`⏳ WMS Cache: Request already pending for ${layerName}, reusing...`);
             return pending.promise;
         }
+
+        console.log(`🆕 WMS Cache: Creating new request for ${layerName}`);
 
         // Create new request
         let resolve: (value: FeatureInfoResponse | null) => void;
@@ -80,7 +86,22 @@ class WMSCache {
         });
 
         try {
-            const result = await fetchFunction();
+            console.log(`📡 WMS Cache: Executing fetch function for ${layerName}`);
+            
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise<FeatureInfoResponse | null>((_, reject) => {
+                setTimeout(() => {
+                    console.log(`⏰ WMS Cache: Fetch timeout for ${layerName} after 12 seconds`);
+                    reject(new Error(`Cache fetch timeout for ${layerName}`));
+                }, 12000);
+            });
+            
+            const result = await Promise.race([
+                fetchFunction(),
+                timeoutPromise
+            ]);
+            
+            console.log(`✅ WMS Cache: Fetch completed for ${layerName}:`, result);
             
             // Cache the result
             this.cache.set(key, {
@@ -93,11 +114,13 @@ class WMSCache {
             resolve!(result);
             return result;
         } catch (error) {
+            console.error(`❌ WMS Cache: Fetch failed for ${layerName}:`, error);
             reject!(error);
             throw error;
         } finally {
             // Clean up pending request
             this.pendingRequests.delete(key);
+            console.log(`🧹 WMS Cache: Cleaned up pending request for ${layerName}`);
             
             // Clean up old cache entries
             this.cleanup();

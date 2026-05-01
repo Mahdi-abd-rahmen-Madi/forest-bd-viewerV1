@@ -274,19 +274,58 @@ export function ForestMap() {
 
         // Feature query on click (skip if drawing)
         const handleMapClick = async (e: mapboxgl.MapMouseEvent) => {
-            if (draw.current?.getMode() === 'draw_polygon') return;
+            console.log('🖱️ Map clicked at:', e.lngLat);
+            
+            if (draw.current?.getMode() === 'draw_polygon') {
+                console.log('❌ Skipping click - in drawing mode');
+                return;
+            }
 
             const selected = draw.current?.getSelected();
             // @ts-ignore
-            if (selected?.features?.length > 0) return;
+            if (selected?.features?.length > 0) {
+                console.log('❌ Skipping click - features selected');
+                return;
+            }
 
+            console.log('🔍 Starting layer query...');
             setIsQuerying(true);
             const { lng, lat } = e.lngLat;
-            const data = await queryAllLayers(lng, lat, map.current!);
-            setIsQuerying(false);
+            
+            try {
+                // Add timeout to prevent hanging - give more time for debugging
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => {
+                        console.log('⏰ Query timeout triggered!');
+                        reject(new Error('Query timeout after 15 seconds'));
+                    }, 15000);
+                });
+                
+                console.log('📡 Calling queryAllLayers...');
+                const data = await Promise.race([
+                    queryAllLayers(lng, lat, map.current!),
+                    timeoutPromise
+                ]) as any;
+                
+                console.log('✅ Query completed successfully:', data);
+                setIsQuerying(false);
 
-            if (data?.region || data?.department || data?.commune || data?.forest) {
-                setQueryPopup({ visible: true, lng, lat, data });
+                if (data?.region || data?.department || data?.commune || data?.forest) {
+                    console.log('📍 Showing popup with data');
+                    setQueryPopup({ visible: true, lng, lat, data });
+                } else {
+                    console.log('📭 No data found for this location');
+                }
+            } catch (error) {
+                console.error('❌ Error querying layers:', error);
+                setIsQuerying(false);
+                
+                // Optionally show user feedback about the error
+                if (error instanceof Error && error.message.includes('timeout')) {
+                    console.warn('⏰ Layer query timed out - possible network or server issue');
+                } else {
+                    console.warn('🔌 Layer query failed - check network connection');
+                }
             }
         };
 

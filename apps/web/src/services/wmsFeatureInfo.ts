@@ -30,14 +30,9 @@ export const getFeatureInfo = async (
     lat: number,
     map: mapboxgl.Map
 ): Promise<FeatureInfoResponse | null> => {
-    // Import services dynamically to avoid circular dependencies
-    const { wmsCache } = await import('./wmsCache');
-    const { wmsPreconnectionService } = await import('./wmsPreconnection');
+    console.log(`📦 getFeatureInfo: Starting DIRECT fetch for ${layerName}`);
     
-    // Ensure preconnection for this layer
-    wmsPreconnectionService.preconnectWMSLayer(layerName);
-    
-    return wmsCache.getFeatureInfo(layerName, lng, lat, async () => {
+    try {
         const point = map.project([lng, lat]);
         const bounds = map.getBounds();
 
@@ -58,8 +53,8 @@ export const getFeatureInfo = async (
             transparent: 'true',
             srs: 'EPSG:3857',
             bbox: `${minx},${miny},${maxx},${maxy}`,
-            width: map.getCanvas().width.toString(),   // correct
-            height: map.getCanvas().height.toString(), // correct
+            width: map.getCanvas().width.toString(),
+            height: map.getCanvas().height.toString(),
             x: Math.floor(point.x).toString(),
             y: Math.floor(point.y).toString(),
             info_format: 'application/json',
@@ -68,30 +63,55 @@ export const getFeatureInfo = async (
 
         const url = `${GEOSERVER_URL}/${WORKSPACE}/wms?${params.toString()}`;
 
-        try {
-            // Mark connection as used for monitoring
-            wmsPreconnectionService.markConnectionUsed(`${GEOSERVER_URL}/${WORKSPACE}/wms`);
-            
-            const response = await fetch(url);
-            if (!response.ok) {
-                console.warn(`WMS HTTP error for ${layerName}: ${response.status} ${response.statusText}`);
-                return null;
+        console.log(`🌐 WMS Fetch: Starting DIRECT request to ${url}`);
+        console.log(`📐 WMS Fetch: Map bounds - BBox: ${minx},${miny},${maxx},${maxy}`);
+        console.log(`📍 WMS Fetch: Click point - X: ${point.x}, Y: ${point.y}`);
+        console.log(`📏 WMS Fetch: Canvas size - Width: ${map.getCanvas().width}, Height: ${map.getCanvas().height}`);
+        
+        // Add timeout to fetch to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            console.log(`⏰ WMS Fetch: Timeout triggered for ${layerName}, aborting request`);
+            controller.abort();
+        }, 8000); // 8 second timeout
+        
+        console.log(`📡 WMS Fetch: Sending DIRECT fetch request for ${layerName}`);
+        const response = await fetch(url, { 
+            signal: controller.signal,
+            headers: {
+                'Accept': 'application/json, text/plain, */*'
             }
-            
-            const result = await response.json();
-            
-            // Check for WMS service exceptions
-            if (result.type === 'ServiceExceptionReport' || result.ServiceException) {
-                console.warn(`WMS Service Exception for ${layerName}:`, result);
-                return null;
-            }
-            
-            return result;
-        } catch (error) {
-            console.error(`Error fetching ${layerName}:`, error);
+        });
+        
+        clearTimeout(timeoutId);
+        console.log(`✅ WMS Fetch: Response received for ${layerName} - Status: ${response.status}`);
+        
+        if (!response.ok) {
+            console.warn(`WMS HTTP error for ${layerName}: ${response.status} ${response.statusText}`);
             return null;
         }
-    });
+        
+        console.log(`� WMS Fetch: Parsing JSON response for ${layerName}`);
+        const result = await response.json();
+        console.log(`✅ WMS Fetch: JSON parsed successfully for ${layerName}`);
+        
+        // Check for WMS service exceptions
+        if (result.type === 'ServiceExceptionReport' || result.ServiceException) {
+            console.warn(`WMS Service Exception for ${layerName}:`, result);
+            return null;
+        }
+        
+        console.log(`🎉 WMS Fetch: Request completed successfully for ${layerName}`);
+        return result;
+        
+    } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+            console.warn(`⏰ WMS Fetch: Request timeout for ${layerName} after 8 seconds`);
+            return null;
+        }
+        console.error(`❌ WMS Fetch: Error fetching ${layerName}:`, error);
+        return null;
+    }
 };
 
 // Query all layers in hierarchy: Region → Department → Commune → Forest
@@ -105,43 +125,24 @@ export const queryAllLayers = async (
     commune: FeatureInfoResponse | null;
     forest: FeatureInfoResponse | null;
 }> => {
-    // Import services dynamically to avoid circular dependencies
-    const { wmsCache } = await import('./wmsCache');
-    const { wmsPreconnectionService } = await import('./wmsPreconnection');
+    console.log('🚀 queryAllLayers: Starting DIRECT batch query for all layers');
     
-    // Preconnect all layers at once for optimal performance
-    const layerNames = ['region', 'department', 'cummune', 'forest'];
-    wmsPreconnectionService.preconnectWMSLayers(layerNames);
-    
-    // Use batch processing for better performance
+    // Use direct requests without cache for simplicity and debugging
     const requests = [
-        {
-            layerName: 'region',
-            lng,
-            lat,
-            fetchFunction: () => getFeatureInfo('region', lng, lat, map)
-        },
-        {
-            layerName: 'department',
-            lng,
-            lat,
-            fetchFunction: () => getFeatureInfo('department', lng, lat, map)
-        },
-        {
-            layerName: 'cummune',
-            lng,
-            lat,
-            fetchFunction: () => getFeatureInfo('cummune', lng, lat, map)
-        },
-        {
-            layerName: 'forest',
-            lng,
-            lat,
-            fetchFunction: () => getFeatureInfo('forest', lng, lat, map)
-        }
+        getFeatureInfo('region', lng, lat, map),
+        getFeatureInfo('department', lng, lat, map),
+        getFeatureInfo('cummune', lng, lat, map),
+        getFeatureInfo('forest', lng, lat, map)
     ];
 
-    const [region, department, commune, forest] = await wmsCache.batchGetFeatureInfo(requests);
+    console.log('📦 queryAllLayers: Starting DIRECT batch processing...');
+    const startTime = Date.now();
+    
+    const [region, department, commune, forest] = await Promise.all(requests);
+    
+    const endTime = Date.now();
+    console.log(`⏱️ queryAllLayers: DIRECT batch processing completed in ${endTime - startTime}ms`);
+    console.log('📊 queryAllLayers: Results:', { region, department, commune, forest });
 
     return { region, department, commune, forest };
 };
