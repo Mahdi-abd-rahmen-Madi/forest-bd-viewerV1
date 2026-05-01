@@ -86,6 +86,8 @@ export function ForestMap() {
     const [showForestPlots, setShowForestPlots] = useState(true);
     const [showCoverageOverlay, setShowCoverageOverlay] = useState(false);
     const [showVosgesOutline, setShowVosgesOutline] = useState(true);
+    const [highlightedPolygonId, setHighlightedPolygonId] = useState<string | null>(null);
+    const [showSavedPolygons, setShowSavedPolygons] = useState(true);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
@@ -603,6 +605,23 @@ export function ForestMap() {
         }
     };
 
+    // Handle polygon highlight (show/hide individual polygon)
+    const handleHighlightPolygon = (polygon: any) => {
+        if (!showSavedPolygons) {
+            // If polygons are hidden, show all polygons
+            setShowSavedPolygons(true);
+            setHighlightedPolygonId(null);
+        } else if (highlightedPolygonId === polygon.id) {
+            // If the same polygon is clicked again, hide all polygons
+            setHighlightedPolygonId(null);
+            setShowSavedPolygons(false);
+        } else {
+            // Highlight the new polygon and ensure polygons are shown
+            setHighlightedPolygonId(polygon.id);
+            setShowSavedPolygons(true);
+        }
+    };
+
     // Display saved polygons
     useEffect(() => {
         if (!map.current || !savedPolygonsData?.myPolygons || !mapLoaded) return;
@@ -612,7 +631,7 @@ export function ForestMap() {
         }, 500);
 
         return () => clearTimeout(timer);
-    }, [savedPolygonsData, mapLoaded]);
+    }, [savedPolygonsData, mapLoaded, highlightedPolygonId, showSavedPolygons]);
 
     const displaySavedPolygonsOnMap = (mapInstance: mapboxgl.Map, polygons: any[], fitBounds: boolean = false) => {
         if (!mapInstance.isStyleLoaded()) {
@@ -627,7 +646,18 @@ export function ForestMap() {
 
         if (polygons.length === 0) return;
 
-        const validPolygons = polygons.map((p) => {
+        // Don't show any polygons if showSavedPolygons is false
+        if (!showSavedPolygons) return;
+
+        // Filter polygons based on highlighted state
+        let filteredPolygons = polygons;
+        
+        if (highlightedPolygonId) {
+            // Show only the highlighted polygon
+            filteredPolygons = polygons.filter(p => p.id === highlightedPolygonId);
+        }
+
+        const validPolygons = filteredPolygons.map((p) => {
             let geometry = p.geometry;
             if (typeof geometry === 'string') {
                 try { geometry = JSON.parse(geometry); } catch { return null; }
@@ -712,10 +742,14 @@ export function ForestMap() {
                 isDrawing={isDrawing}
             />
 
-            <SavedPolygonsList onSelectPolygon={(p) => {
-                setAnalysisResult(p);
-                setShowResults(true);
-            }} />
+            <SavedPolygonsList 
+                onSelectPolygon={(p) => {
+                    setAnalysisResult(p);
+                    setShowResults(true);
+                }}
+                onHighlightPolygon={handleHighlightPolygon}
+                selectedPolygonId={highlightedPolygonId}
+            />
 
             {/* Save Polygon Modal */}
             {showSaveModal && drawnGeometry && (

@@ -47,4 +47,13 @@ export class PolygonResolver {
     const userId = context.req.user.sub;
     return await this.polygonService.reanalyzePolygon(userId, polygonId);
   }
+
+  @Mutation(() => Boolean)
+  @UseGuards(NoAuthGuard)
+  async deleteAllPolygons(
+    @Context() context: { req: { user: { sub: string } } },
+  ): Promise<boolean> {
+    const userId = context.req.user.sub;
+    return await this.polygonService.deleteAllPolygons(userId);
+  }
 }

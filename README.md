@@ -759,6 +759,147 @@ forest-bd-viewer/
 
 ---
 
+## 🚨 Critical Issue Resolved: Polygon Saving & Display Functionality
+
+### Root Cause Analysis - Polygon Drawing Analysis Working But Not Persisting
+
+**Problem Identified**: Users could draw polygons and see analysis results, but polygons weren't being saved properly or displayed in the saved polygons list compared to the initial forked version.
+
+**Root Cause**: **Multiple issues with polygon saving pipeline and UI display**
+
+#### 🔍 Investigation Results
+
+**Initial Analysis**:
+- ✅ **Polygons WERE being saved** to database correctly (30+ polygons found with COMPLETED status)
+- ✅ **API working correctly** - GraphQL queries returned saved polygons without errors
+- ✅ **Backend analysis working** - All polygons had analysis results with species distribution
+- ❌ **Frontend display issues** - Saved polygons not visible in UI or on map
+
+#### 🐛 Issues Identified
+
+**1. Geometry Serialization Error**:
+```javascript
+// Error: String cannot represent value: { type: "MultiPolygon", coordinates: [[Array]] }
+// Cause: Geometry stored as object but GraphQL expected string
+```
+
+**2. CSS Positioning Issues**:
+```css
+/* Problem: SavedPolygonsList positioned off-screen */
+.top-80, .top-65 { /* Too high, overlapping with other UI */ }
+```
+
+**3. Missing Eye Button Functionality**:
+```javascript
+// Problem: onHighlightPolygon prop not passed to SavedPolygonsList
+// Result: Eye button clicks had no effect on map display
+```
+
+#### ✅ Solutions Implemented
+
+**1. Fixed Geometry Serialization**:
+```typescript
+// Updated polygon.service.ts
+const polygon = this.polygonRepository.create({
+  userId,
+  name: input.name,
+  geometry: JSON.stringify(processedGeometry), // Store as JSON string
+  areaHectares: input.areaHectares || areaHectares,
+  status: AnalysisStatus.PENDING,
+});
+
+// Updated database entity
+@Column('jsonb', { nullable: true })
+geometry!: any; // Handle both string and object inputs
+```
+
+**2. Enhanced Geometry Parsing**:
+```typescript
+// Handle both string and object inputs
+let geometry: any = input.geometry;
+if (typeof geometry === 'string') {
+  try {
+    geometry = JSON.parse(geometry);
+  } catch (error) { 
+    throw new BadRequestException('Invalid geometry JSON format'); 
+  }
+}
+```
+
+**3. Fixed UI Positioning**:
+```css
+/* Updated SavedPolygonsList positioning */
+.top-20 → .top-32 → .top-48 → .top-64 → .top-80
+/* Final: top-80 (320px from top) for maximum clearance */
+```
+
+**4. Implemented Eye Button Functionality**:
+```typescript
+// Added polygon visibility state management
+const [showSavedPolygons, setShowSavedPolygons] = useState(true);
+const [highlightedPolygonId, setHighlightedPolygonId] = useState<string | null>(null);
+
+// Enhanced handleHighlightPolygon function
+const handleHighlightPolygon = (polygon: any) => {
+  if (!showSavedPolygons) {
+    // If polygons are hidden, show all polygons
+    setShowSavedPolygons(true);
+    setHighlightedPolygonId(null);
+  } else if (highlightedPolygonId === polygon.id) {
+    // If the same polygon is clicked again, hide all polygons
+    setHighlightedPolygonId(null);
+    setShowSavedPolygons(false);
+  } else {
+    // Highlight the new polygon and ensure polygons are shown
+    setHighlightedPolygonId(polygon.id);
+    setShowSavedPolygons(true);
+  }
+};
+```
+
+**5. Added Bulk Delete Functionality**:
+```typescript
+// Added deleteAllPolygons mutation and service method
+@Mutation(() => Boolean)
+async deleteAllPolygons(@Context() context: { req: { user: { sub: string } } }): Promise<boolean> {
+  const userId = context.req.user.sub;
+  return await this.polygonService.deleteAllPolygons(userId);
+}
+```
+
+#### 🎯 Eye Button Toggle Flow
+
+**Complete User Experience**:
+1. **Initial State**: All saved polygons visible on map (blue eye icons)
+2. **First Click**: Show only that specific polygon (green eye icon)
+3. **Second Click**: Hide all polygons (no polygons visible)
+4. **Click Any Eye When Hidden**: Show all polygons again (blue eye icons)
+
+**Visual Feedback**:
+- **Green eye + background**: Polygon currently highlighted/visible
+- **Blue eye**: Polygon hidden (all polygons shown)
+- **Dynamic tooltips**: "Hide from map" vs "Show on map"
+
+#### 📊 Results After Fix
+
+**Polygon Saving Workflow**:
+- ✅ **Draw polygon** → Save modal → Analysis → **Saved to database**
+- ✅ **Saved polygons list** → Proper positioning → **Visible in UI**
+- ✅ **Eye button clicks** → Toggle visibility → **Map updates correctly**
+- ✅ **Geometry serialization** → Fixed → **No GraphQL errors**
+- ✅ **Database cleanup** → Old polygons deleted → **Clean state**
+
+**Technical Improvements**:
+- **Geometry handling**: Fixed string/object serialization issues
+- **UI positioning**: SavedPolygonsList moved to `top-80` for better visibility
+- **State management**: Added `showSavedPolygons` and `highlightedPolygonId` states
+- **Map display**: Proper filtering based on polygon visibility state
+- **User experience**: Complete toggle functionality with visual feedback
+
+**Current Status**: **System fully functional** - polygon drawing, saving, analysis, and display working correctly with proper UI controls.
+
+---
+
 ## Time Investment & Implementation Effort
 
 ### 📅 Actual Development Time

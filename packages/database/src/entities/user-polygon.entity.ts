@@ -36,7 +36,7 @@ export class UserPolygon {
 
     @Field(() => String)
     @Column('jsonb', { nullable: true })
-    geometry!: string;
+    geometry!: any;
 
     @Field(() => Number)
     @Column('double precision')

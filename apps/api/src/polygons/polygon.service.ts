@@ -16,13 +16,27 @@ export class PolygonService {
 
   async savePolygon(userId: string, input: SavePolygonInput): Promise<UserPolygon> {
     try {
-      // Parse geometry string to GeoJSON object
-      const geometry = JSON.parse(input.geometry);
+      let geometry: any = input.geometry;
+      
+      // Handle both string and object inputs
+      if (typeof geometry === 'string') {
+        try {
+          geometry = JSON.parse(geometry);
+        } catch (error) { 
+          throw new BadRequestException('Invalid geometry JSON format'); 
+        }
+      }
+      
+      // Validate geometry structure
+      if (!geometry || !geometry.type || !geometry.coordinates) {
+        throw new BadRequestException('Invalid geometry structure');
+      }
+
       const areaInSquareMeters = turf.area(geometry);
       const areaHectares = areaInSquareMeters / 10000;
 
       // Convert Polygon to MultiPolygon to match database schema
-      let processedGeometry;
+      let processedGeometry: any;
       if (geometry.type === 'Polygon') {
         processedGeometry = {
           type: 'MultiPolygon',
@@ -35,7 +49,7 @@ export class PolygonService {
       const polygon = this.polygonRepository.create({
         userId,
         name: input.name,
-        geometry: processedGeometry, // Store as object, TypeORM will handle JSON conversion
+        geometry: JSON.stringify(processedGeometry), // Store as JSON string
         areaHectares: input.areaHectares || areaHectares, // Use provided area or calculated
         status: AnalysisStatus.PENDING,
       });
@@ -91,7 +105,7 @@ export class PolygonService {
 
     try {
       const analysisResults = await this.geospatialService.analyzeSpatialIntersection({
-        geometry: polygon.geometry,
+        geometry: polygon.geometry, // Already stored as JSON string
         analysisType: 'full'
       });
       polygon.analysisResults = analysisResults;
@@ -103,5 +117,13 @@ export class PolygonService {
     }
 
     return await this.polygonRepository.save(polygon);
+  }
+
+  async deleteAllPolygons(userId: string): Promise<boolean> {
+    const result = await this.polygonRepository.delete({
+      userId,
+    });
+
+    return (result.affected || 0) > 0;
   }
 }

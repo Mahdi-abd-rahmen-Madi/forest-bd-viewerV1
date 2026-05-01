@@ -83,6 +83,7 @@ input MapStateInput {
 }
 
 type Mutation {
+  deleteAllPolygons: Boolean!
   deletePolygon(polygonId: String!): Boolean!
   login(input: LoginInput!): AuthPayload!
   logout: Boolean!

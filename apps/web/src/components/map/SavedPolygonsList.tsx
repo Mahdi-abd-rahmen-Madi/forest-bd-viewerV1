@@ -34,7 +34,7 @@ export function SavedPolygonsList({
 
     if (loading) {
         return (
-            <div className="absolute top-20 left-4 z-10 w-80 bg-white rounded-lg shadow-lg p-4">
+            <div className="absolute top-80 left-4 z-10 w-80 bg-white rounded-lg shadow-lg p-4">
                 <div className="animate-pulse space-y-3">
                     <div className="h-4 bg-gray-200 rounded w-3/4"></div>
                     <div className="h-4 bg-gray-200 rounded"></div>
@@ -58,7 +58,7 @@ export function SavedPolygonsList({
     }
 
     return (
-        <div className="absolute top-65 left-4 z-10 w-80 bg-white rounded-lg shadow-lg border border-gray-200 max-h-[60vh] overflow-y-auto">
+        <div className="absolute top-80 left-4 z-10 w-80 bg-white rounded-lg shadow-lg border border-gray-200 max-h-[60vh] overflow-y-auto">
             <div className="p-3 bg-gray-50 border-b border-gray-200 sticky top-0 flex items-center justify-between">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                     <Trees size={18} className="text-green-600" />
@@ -101,8 +101,16 @@ export function SavedPolygonsList({
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button
                                     onClick={(e) => handleShowOnMap(polygon, e)}
-                                    className="p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded"
-                                    title="Show on map"
+                                    className={`p-1 rounded transition-colors ${
+                                        selectedPolygonId === polygon.id 
+                                            ? 'text-green-600 bg-green-50' 
+                                            : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'
+                                    }`}
+                                    title={
+                                        selectedPolygonId === polygon.id 
+                                            ? "Hide from map" 
+                                            : "Show on map"
+                                    }
                                 >
                                     <Eye size={16} />
                                 </button>
