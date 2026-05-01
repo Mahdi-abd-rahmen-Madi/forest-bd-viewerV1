@@ -638,6 +638,7 @@ type AnalysisResults {
 - **User Interface**: Authentication flow, filter panels, layer controls
 - **State Management**: Zustand stores for map state and user session
 - **Responsive Design**: Modern UI with TailwindCSS and Lucide icons
+- **Fly-to Navigation**: Compass icon button for quick navigation to saved polygon locations with smart zoom calculation
 
 ### 📊 Data Pipeline (ETL System)
 **Complete BD FORET Integration Infrastructure:**

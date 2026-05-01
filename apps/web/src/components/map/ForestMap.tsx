@@ -591,6 +591,94 @@ export function ForestMap() {
         });
     };
 
+    // Handle fly to polygon
+    const handleFlyToPolygon = (polygon: any) => {
+        if (!map.current || !polygon.geometry) {
+            return;
+        }
+
+        let geometry = polygon.geometry;
+        
+        if (typeof geometry === 'string') {
+            try { 
+                geometry = JSON.parse(geometry); 
+            } catch (error) { 
+                return; 
+            }
+        }
+
+        if (!geometry?.coordinates || !Array.isArray(geometry.coordinates)) {
+            return;
+        }
+
+        // Calculate bounds from polygon coordinates
+        let coords: number[][] = [];
+        
+        // Handle different geometry structures
+        if (geometry.type === 'Polygon' && Array.isArray(geometry.coordinates[0])) {
+            coords = geometry.coordinates[0]; // First ring of polygon
+        } else if (geometry.type === 'MultiPolygon' && Array.isArray(geometry.coordinates[0][0])) {
+            coords = geometry.coordinates[0][0]; // First ring of first polygon
+        } else if (Array.isArray(geometry.coordinates)) {
+            // Fallback: try to get first valid coordinate array
+            coords = geometry.coordinates[0] || geometry.coordinates;
+        }
+        
+        if (!coords || coords.length === 0) {
+            return;
+        }
+        
+        // Validate coordinates
+        const validCoords = coords.filter(coord => 
+            Array.isArray(coord) && 
+            coord.length >= 2 && 
+            typeof coord[0] === 'number' && 
+            typeof coord[1] === 'number' &&
+            !isNaN(coord[0]) && 
+            !isNaN(coord[1])
+        );
+        
+        if (validCoords.length === 0) {
+            return;
+        }
+        
+        const lngs = validCoords.map((coord: number[]) => coord[0]);
+        const lats = validCoords.map((coord: number[]) => coord[1]);
+        
+        const minLng = Math.min(...lngs);
+        const maxLng = Math.max(...lngs);
+        const minLat = Math.min(...lats);
+        const maxLat = Math.max(...lats);
+        
+        // Calculate center
+        const centerLng = (minLng + maxLng) / 2;
+        const centerLat = (minLat + maxLat) / 2;
+        
+        // Validate center coordinates
+        if (isNaN(centerLng) || isNaN(centerLat)) {
+            return;
+        }
+        
+        // Calculate appropriate zoom based on polygon size
+        const lngDiff = maxLng - minLng;
+        const latDiff = maxLat - minLat;
+        const maxDiff = Math.max(lngDiff, latDiff);
+        
+        // Adjust zoom based on polygon size - smaller polygons need higher zoom
+        let zoom = 14; // Default zoom
+        if (maxDiff > 0.5) zoom = 10;
+        else if (maxDiff > 0.2) zoom = 11;
+        else if (maxDiff > 0.1) zoom = 12;
+        else if (maxDiff > 0.05) zoom = 13;
+        else if (maxDiff < 0.01) zoom = 15;
+        
+        map.current.flyTo({
+            center: [centerLng, centerLat],
+            zoom: zoom,
+            essential: true
+        });
+    };
+
     // Toggle Vosges outline visibility
     const toggleVosgesOutline = () => {
         setShowVosgesOutline(!showVosgesOutline);
@@ -748,6 +836,7 @@ export function ForestMap() {
                     setShowResults(true);
                 }}
                 onHighlightPolygon={handleHighlightPolygon}
+                onFlyToPolygon={handleFlyToPolygon}
                 selectedPolygonId={highlightedPolygonId}
             />
 

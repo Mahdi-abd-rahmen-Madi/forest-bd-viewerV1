@@ -2,18 +2,20 @@
 
 import { useQuery, useMutation } from '@apollo/client/react';
 import { GET_MY_POLYGONS, DELETE_POLYGON_MUTATION } from '@/graphql/polygons';
-import { MapPin, Trash2, Trees, Clock, AlertCircle, Eye } from 'lucide-react';
+import { MapPin, Trash2, Trees, Clock, AlertCircle, Eye, Compass } from 'lucide-react';
 import { MyPolygonsQueryResult, SavedPolygon } from '@/types';
 
 interface SavedPolygonsListProps {
     onSelectPolygon: (polygon: SavedPolygon) => void;
     onHighlightPolygon?: (polygon: SavedPolygon) => void;  // New: for map highlighting
+    onFlyToPolygon?: (polygon: SavedPolygon) => void;  // New: for fly-to navigation
     selectedPolygonId?: string | null;
 }
 
 export function SavedPolygonsList({
                                       onSelectPolygon,
                                       onHighlightPolygon,
+                                      onFlyToPolygon,
                                       selectedPolygonId
                                   }: SavedPolygonsListProps) {
     const { data, loading, refetch } = useQuery<MyPolygonsQueryResult>(GET_MY_POLYGONS);
@@ -30,6 +32,11 @@ export function SavedPolygonsList({
     const handleShowOnMap = (polygon: SavedPolygon, e: React.MouseEvent) => {
         e.stopPropagation();
         onHighlightPolygon?.(polygon);
+    };
+
+    const handleFlyTo = (polygon: SavedPolygon, e: React.MouseEvent) => {
+        e.stopPropagation();
+        onFlyToPolygon?.(polygon);
     };
 
     if (loading) {
@@ -113,6 +120,13 @@ export function SavedPolygonsList({
                                     }
                                 >
                                     <Eye size={16} />
+                                </button>
+                                <button
+                                    onClick={(e) => handleFlyTo(polygon, e)}
+                                    className="p-1 text-purple-500 hover:text-purple-700 hover:bg-purple-50 rounded transition-colors"
+                                    title="Fly to polygon"
+                                >
+                                    <Compass size={16} />
                                 </button>
                                 <button
                                     onClick={(e) => handleDelete(polygon.id, e)}
