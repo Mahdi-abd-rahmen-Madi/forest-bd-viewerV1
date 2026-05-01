@@ -15,8 +15,8 @@ interface MapState {
     showCadastre: boolean;
     setViewState: (lng: number, lat: number, zoom: number) => void;
     setFilters: (filters: MapFilters) => void;
-    setShowCadastre: (show: boolean) => void;
     resetFilters: () => void;
+    setShowCadastre: (show: boolean) => void;
 }
 
 // Default to center of France
@@ -33,12 +33,12 @@ export const useMapStore = create<MapState>((set) => ({
         filters: { ...state.filters, ...filters }
     })),
 
-    setShowCadastre: (show) => set({ showCadastre: show }),
-
     resetFilters: () => set({
         filters: {},
         lng: 2.2137,
         lat: 46.2276,
         zoom: 5
     }),
+
+    setShowCadastre: (show) => set({ showCadastre: show }),
 }));

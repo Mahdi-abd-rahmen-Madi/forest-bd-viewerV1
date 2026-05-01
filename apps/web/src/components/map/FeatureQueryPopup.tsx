@@ -1,6 +1,6 @@
 'use client';
 
-import { X, MapPin, Trees, Building2, Home, Landmark, FileType, MapPinned } from 'lucide-react';
+import { X, MapPin, Trees, Building2, Home, Landmark, FileType, MapPinned, Map as MapIcon, FileText } from 'lucide-react';
 import { FeatureInfoResponse } from '@/services/wmsFeatureInfo';
 
 interface FeatureQueryPopupProps {
@@ -11,6 +11,9 @@ interface FeatureQueryPopupProps {
         department: FeatureInfoResponse | null;
         commune: FeatureInfoResponse | null;
         forest: FeatureInfoResponse | null;
+        pluZoning: FeatureInfoResponse | null;
+        pluPrescriptions: FeatureInfoResponse | null;
+        pciParcels: any[] | null;
     };
     onClose: () => void;
     onSelectRegion?: (code: string) => void;
@@ -27,7 +30,8 @@ export function FeatureQueryPopup({
     onSelectDepartment,
     onSelectCommune
 }: FeatureQueryPopupProps) {
-    const hasAnyData = data.region || data.department || data.commune || data.forest;
+    const hasAnyData = data.region || data.department || data.commune || data.forest || 
+        data.pluZoning || data.pluPrescriptions || data.pciParcels;
 
     // Helper to safely get properties
     const getProps = (feature: FeatureInfoResponse | null) => {
@@ -250,6 +254,100 @@ export function FeatureQueryPopup({
                                                 </span>
                                             </div>
                                         ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ==================== PLU SECTIONS ==================== */}
+                        {/* PLU Zoning */}
+                        {data.pluZoning && data.pluZoning.features && data.pluZoning.features.length > 0 && (
+                            <div className="p-4 rounded-xl bg-linear-to-br from-green-50 to-emerald-50 border-2 border-green-200 shadow-sm">
+                                <div className="flex items-center gap-3 mb-3 pb-2 border-b border-green-200">
+                                    <div className="p-2 bg-green-100 rounded-lg">
+                                        <MapIcon size={22} className="text-green-600" />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-green-600 uppercase tracking-wider">PLU Zoning</p>
+                                        <h3 className="text-lg font-bold text-gray-900 leading-tight">Urban Planning Zone</h3>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2 text-sm">
+                                    {Object.entries(getProps(data.pluZoning))
+                                        .filter(([key]) => !excludeKeys.includes(key))
+                                        .map(([key, value]) => (
+                                            <div key={key} className="flex justify-between items-start gap-2">
+                                                <span className="text-green-600 font-medium shrink-0">{formatKey(key)}:</span>
+                                                <span className="text-gray-700 text-right break-all max-w-[200px]">
+                                                    {formatValue(value)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* PLU Prescriptions */}
+                        {data.pluPrescriptions && data.pluPrescriptions.features && data.pluPrescriptions.features.length > 0 && (
+                            <div className="p-4 rounded-xl bg-linear-to-br from-teal-50 to-cyan-50 border-2 border-teal-200 shadow-sm">
+                                <div className="flex items-center gap-3 mb-3 pb-2 border-b border-teal-200">
+                                    <div className="p-2 bg-teal-100 rounded-lg">
+                                        <FileText size={22} className="text-teal-600" />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-teal-600 uppercase tracking-wider">PLU Prescriptions</p>
+                                        <h3 className="text-lg font-bold text-gray-900 leading-tight">Planning Regulations</h3>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2 text-sm">
+                                    {Object.entries(getProps(data.pluPrescriptions))
+                                        .filter(([key]) => !excludeKeys.includes(key))
+                                        .map(([key, value]) => (
+                                            <div key={key} className="flex justify-between items-start gap-2">
+                                                <span className="text-teal-600 font-medium shrink-0">{formatKey(key)}:</span>
+                                                <span className="text-gray-700 text-right break-all max-w-[200px]">
+                                                    {formatValue(value)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* PLU Information */}
+                        {/* Removed - layer not available in French geoportal service */}
+
+                        {/* PCI Parcels */}
+                        {data.pciParcels && data.pciParcels.length > 0 && (
+                            <div className="p-4 rounded-xl bg-linear-to-br from-red-50 to-pink-50 border-2 border-red-200 shadow-sm">
+                                <div className="flex items-center gap-3 mb-3 pb-2 border-b border-red-200">
+                                    <div className="p-2 bg-red-100 rounded-lg">
+                                        <MapIcon size={22} className="text-red-600" />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-red-600 uppercase tracking-wider">PCI Parcels</p>
+                                        <h3 className="text-lg font-bold text-gray-900 leading-tight">Cadastral Parcels</h3>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2 text-sm">
+                                    {data.pciParcels.map((parcel, index) => (
+                                        <div key={index} className="p-2 bg-white rounded border border-red-100">
+                                            <div className="font-medium text-red-600 mb-1">Parcel {index + 1}</div>
+                                            {Object.entries(parcel.properties || {})
+                                                .filter(([key]) => !excludeKeys.includes(key))
+                                                .slice(0, 5) // Limit to first 5 properties for space
+                                                .map(([key, value]) => (
+                                                    <div key={key} className="flex justify-between items-start gap-2 text-xs">
+                                                        <span className="text-red-500 font-medium shrink-0">{formatKey(key)}:</span>
+                                                        <span className="text-gray-600 text-right break-all max-w-[200px]">
+                                                            {formatValue(value)}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}

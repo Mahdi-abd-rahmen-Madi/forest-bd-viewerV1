@@ -13,7 +13,7 @@ import { useAuthStore } from '@/store/authStore';
 import { UPDATE_MAP_STATE } from '@/graphql/auth';
 import { GET_MY_POLYGONS, SAVE_POLYGON_MUTATION } from '@/graphql/polygons';
 import { queryAllLayers } from '@/services/wmsFeatureInfo';
-import { WMS_LAYERS, getWMSTileUrl, WMSLayerConfig } from '@/services/wmsLayers';
+import { WMS_LAYERS, getWMSTileUrl, getVectorTileUrl, WMSLayerConfig } from '@/services/wmsLayers';
 import { useViewportForestData } from '@/hooks/useViewportForestData';
 import { MapboxDrawCreateEvent, MapboxDrawModeChangeEvent, UpdateMapStateResponse, MyPolygonsQueryResult, FeatureQueryPopupProps, SelectHandlerCallback, User } from '@/types';
 
@@ -93,7 +93,7 @@ export function ForestMap() {
     const map = useRef<mapboxgl.Map | null>(null);
     const draw = useRef<MapboxDraw | null>(null);
 
-    const { lng, lat, zoom, filters, showCadastre, setViewState, setShowCadastre, setFilters } = useMapStore();
+    const { lng, lat, zoom, filters, showCadastre, setViewState, setFilters, setShowCadastre } = useMapStore();
     const { user, logout, updateUser } = useAuthStore();
 
     const { data: savedPolygonsData, refetch: refetchPolygons } = useQuery<MyPolygonsQueryResult>(GET_MY_POLYGONS);
@@ -310,7 +310,8 @@ export function ForestMap() {
                 console.log('✅ Query completed successfully:', data);
                 setIsQuerying(false);
 
-                if (data?.region || data?.department || data?.commune || data?.forest) {
+                if (data?.region || data?.department || data?.commune || data?.forest || 
+                    data?.pluZoning || data?.pluPrescriptions || data?.pciParcels) {
                     console.log('📍 Showing popup with data');
                     setQueryPopup({ visible: true, lng, lat, data });
                 } else {
@@ -360,6 +361,7 @@ export function ForestMap() {
         wmsLayers.forEach((layer) => {
             const sourceId = `wms-${layer.id}`;
             const layerId = `wms-layer-${layer.id}`;
+            const vectorSourceId = `vector-${layer.id}`;
 
             if (mapInstance.getLayer(layerId)) {
                 mapInstance.removeLayer(layerId);
@@ -367,27 +369,76 @@ export function ForestMap() {
             if (mapInstance.getSource(sourceId)) {
                 mapInstance.removeSource(sourceId);
             }
+            if (mapInstance.getSource(vectorSourceId)) {
+                mapInstance.removeSource(vectorSourceId);
+            }
+            
+            // Clean up PCI vector tile layers
+            if (layer.id === 'pci-parcels') {
+                const pciLayers = [
+                    'parcelle', 'parcels', 'pci_parcelle', 'pci_parcelles',
+                    'cadastral_parcels', 'parcelles', 'PARCELLE'
+                ];
+                pciLayers.forEach(sourceLayer => {
+                    const pciLayerId = `pci-${sourceLayer}`;
+                    if (mapInstance.getLayer(pciLayerId)) {
+                        mapInstance.removeLayer(pciLayerId);
+                    }
+                });
+            }
         });
 
         // Add all WMS layers
         wmsLayers.forEach((layer) => {
-            const sourceId = `wms-${layer.id}`;
-            const layerId = `wms-layer-${layer.id}`;
+            if (layer.vectorTile && layer.id === 'pci-parcels') {
+                // Add PCI vector tile source
+                mapInstance.addSource('pci-parcels-source', {
+                    type: 'vector',
+                    tiles: [getVectorTileUrl(layer)],
+                    minzoom: layer.minZoom,
+                    maxzoom: layer.maxZoom,
+                    attribution: '© IGN'
+                });
 
-            mapInstance.addSource(sourceId, {
-                type: 'raster',
-                tiles: [getWMSTileUrl(layer.layerName)],
-                tileSize: 256,
-                scheme: 'xyz',
-            });
+                // Add multiple layer variants for robustness
+                const pciLayers = [
+                    'parcelle', 'parcels', 'pci_parcelle', 'pci_parcelles',
+                    'cadastral_parcels', 'parcelles', 'PARCELLE'
+                ];
 
-            mapInstance.addLayer({
-                id: layerId,
-                type: 'raster',
-                source: sourceId,
-                paint: { 'raster-opacity': layer.visible ? layer.opacity : 0 },
-                layout: { visibility: layer.visible ? 'visible' : 'none' },
-            });
+                pciLayers.forEach(sourceLayer => {
+                    mapInstance.addLayer({
+                        id: `pci-${sourceLayer}`,
+                        type: 'line',
+                        source: 'pci-parcels-source',
+                        'source-layer': sourceLayer,
+                        paint: {
+                            'line-color': layer.color || '#D82626',
+                            'line-width': 1
+                        },
+                        layout: { visibility: layer.visible ? 'visible' : 'none' }
+                    });
+                });
+            } else {
+                // Add regular WMS layer
+                const sourceId = `wms-${layer.id}`;
+                const layerId = `wms-layer-${layer.id}`;
+
+                mapInstance.addSource(sourceId, {
+                    type: 'raster',
+                    tiles: [getWMSTileUrl(layer)],
+                    tileSize: 256,
+                    scheme: 'xyz',
+                });
+
+                mapInstance.addLayer({
+                    id: layerId,
+                    type: 'raster',
+                    source: sourceId,
+                    paint: { 'raster-opacity': layer.visible ? layer.opacity : 0 },
+                    layout: { visibility: layer.visible ? 'visible' : 'none' },
+                });
+            }
         });
         updateWMSLayerVisibility(map.current!.getZoom());
     };
@@ -501,6 +552,16 @@ export function ForestMap() {
         }
     }, [viewportPlots, mapLoaded]);
 
+    // Initialize cadastre state based on layer visibility
+    useEffect(() => {
+        const pluZoningVisible = wmsLayers.find(l => l.id === 'plu-zoning')?.visible || false;
+        const pluPrescriptionsVisible = wmsLayers.find(l => l.id === 'plu-prescriptions')?.visible || false;
+        const pciParcelsVisible = wmsLayers.find(l => l.id === 'pci-parcels')?.visible || false;
+        const allCadastreLayersVisible = pluZoningVisible && pluPrescriptionsVisible && pciParcelsVisible;
+        
+        setShowCadastre(allCadastreLayersVisible);
+    }, [wmsLayers, setShowCadastre]);
+
     // Update forest plots when data changes
     useEffect(() => {
         updateForestPlotsLayer();
@@ -523,10 +584,28 @@ export function ForestMap() {
     const updateWMSLayerVisibility = (zoom: number) => {
         if (!map.current) return;
         wmsLayers.forEach((layer) => {
-            const layerId = `wms-layer-${layer.id}`;
-            if (!map.current!.getLayer(layerId)) return;
-            const shouldBeVisible = layer.visible && zoom >= layer.minZoom && zoom <= layer.maxZoom;
-            map.current!.setLayoutProperty(layerId, 'visibility', shouldBeVisible ? 'visible' : 'none');
+            if (layer.vectorTile && layer.id === 'pci-parcels') {
+                // Handle PCI vector tile layers
+                const pciLayers = [
+                    'parcelle', 'parcels', 'pci_parcelle', 'pci_parcelles',
+                    'cadastral_parcels', 'parcelles', 'PARCELLE'
+                ];
+                const shouldBeVisible = layer.visible && zoom >= layer.minZoom && zoom <= layer.maxZoom;
+                
+                pciLayers.forEach(sourceLayer => {
+                    const pciLayerId = `pci-${sourceLayer}`;
+                    if (map.current!.getLayer(pciLayerId)) {
+                        map.current!.setLayoutProperty(pciLayerId, 'visibility', shouldBeVisible ? 'visible' : 'none');
+                    }
+                });
+            } else {
+                // Handle regular WMS layers
+                const layerId = `wms-layer-${layer.id}`;
+                if (map.current!.getLayer(layerId)) {
+                    const shouldBeVisible = layer.visible && zoom >= layer.minZoom && zoom <= layer.maxZoom;
+                    map.current!.setLayoutProperty(layerId, 'visibility', shouldBeVisible ? 'visible' : 'none');
+                }
+            }
         });
 
         // Handle forest plots visibility based on zoom
@@ -544,11 +623,80 @@ export function ForestMap() {
         setWmsLayers(updatedLayers);
         if (map.current) {
             const layer = updatedLayers.find(l => l.id === layerId);
-            const mapLayerId = `wms-layer-${layerId}`;
-            if (layer && map.current.getLayer(mapLayerId)) {
+            if (!layer) return;
+            
+            if (layer.vectorTile && layer.id === 'pci-parcels') {
+                // Handle PCI vector tile layers
+                const pciLayers = [
+                    'parcelle', 'parcels', 'pci_parcelle', 'pci_parcelles',
+                    'cadastral_parcels', 'parcelles', 'PARCELLE'
+                ];
                 const shouldBeVisible = layer.visible && currentZoom >= layer.minZoom && currentZoom <= layer.maxZoom;
-                map.current.setLayoutProperty(mapLayerId, 'visibility', shouldBeVisible ? 'visible' : 'none');
+                
+                pciLayers.forEach(sourceLayer => {
+                    const pciLayerId = `pci-${sourceLayer}`;
+                    if (map.current!.getLayer(pciLayerId)) {
+                        map.current!.setLayoutProperty(pciLayerId, 'visibility', shouldBeVisible ? 'visible' : 'none');
+                    }
+                });
+            } else {
+                // Handle regular WMS layers
+                const mapLayerId = `wms-layer-${layerId}`;
+                if (map.current!.getLayer(mapLayerId)) {
+                    const shouldBeVisible = layer.visible && currentZoom >= layer.minZoom && currentZoom <= layer.maxZoom;
+                    map.current!.setLayoutProperty(mapLayerId, 'visibility', shouldBeVisible ? 'visible' : 'none');
+                }
             }
+        }
+        
+        // Update cadastre button state based on individual layer states
+        const pluZoningVisible = updatedLayers.find(l => l.id === 'plu-zoning')?.visible || false;
+        const pluPrescriptionsVisible = updatedLayers.find(l => l.id === 'plu-prescriptions')?.visible || false;
+        const pciParcelsVisible = updatedLayers.find(l => l.id === 'pci-parcels')?.visible || false;
+        const allCadastreLayersVisible = pluZoningVisible && pluPrescriptionsVisible && pciParcelsVisible;
+        
+        setShowCadastre(allCadastreLayersVisible);
+    };
+
+    const handleToggleCadastre = () => {
+        const newCadastreState = !showCadastre;
+        setShowCadastre(newCadastreState);
+        
+        // Toggle PLU and PCI layers based on cadastre state
+        const updatedLayers = wmsLayers.map(layer => {
+            if (layer.id === 'plu-zoning' || layer.id === 'plu-prescriptions' || layer.id === 'pci-parcels') {
+                return { ...layer, visible: newCadastreState };
+            }
+            return layer;
+        });
+        setWmsLayers(updatedLayers);
+        
+        // Update map layers if map is loaded
+        if (map.current) {
+            updatedLayers.forEach(layer => {
+                if (layer.id === 'plu-zoning' || layer.id === 'plu-prescriptions') {
+                    // Handle WMS layers
+                    const layerId = `wms-layer-${layer.id}`;
+                    if (map.current!.getLayer(layerId)) {
+                        const shouldBeVisible = newCadastreState && currentZoom >= layer.minZoom && currentZoom <= layer.maxZoom;
+                        map.current!.setLayoutProperty(layerId, 'visibility', shouldBeVisible ? 'visible' : 'none');
+                    }
+                } else if (layer.id === 'pci-parcels') {
+                    // Handle vector tile layers
+                    const pciLayers = [
+                        'parcelle', 'parcels', 'pci_parcelle', 'pci_parcelles',
+                        'cadastral_parcels', 'parcelles', 'PARCELLE'
+                    ];
+                    const shouldBeVisible = newCadastreState && currentZoom >= layer.minZoom && currentZoom <= layer.maxZoom;
+                    
+                    pciLayers.forEach(sourceLayer => {
+                        const pciLayerId = `pci-${sourceLayer}`;
+                        if (map.current!.getLayer(pciLayerId)) {
+                            map.current!.setLayoutProperty(pciLayerId, 'visibility', shouldBeVisible ? 'visible' : 'none');
+                        }
+                    });
+                }
+            });
         }
     };
 
@@ -880,6 +1028,8 @@ export function ForestMap() {
                 currentZoom={currentZoom}
                 onDrawStart={handleDrawStart}
                 isDrawing={isDrawing}
+                showCadastre={showCadastre}
+                onToggleCadastre={handleToggleCadastre}
             />
 
             <SavedPolygonsList 
@@ -986,26 +1136,14 @@ export function ForestMap() {
 
             {/* Controls positioned after Forest Explorer panel */}
             <div className="absolute top-4 left-[380px] z-10 flex flex-col gap-2">
-                {/* First row - Cadastre and Coverage Info */}
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => setShowCadastre(!showCadastre)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg border transition-all text-sm ${
-                            showCadastre ? 'bg-[#0b4a59] text-white border-[#0b4a59]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                        }`}
-                    >
-                        <Layers size={18} />
-                        <span className="font-medium">Cadastre</span>
-                    </button>
-
-                    <button
-                        onClick={() => setShowCoverageOverlay(true)}
-                        className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg shadow-lg border border-green-500 hover:bg-green-600 transition-all text-sm"
-                    >
-                        <Info size={18} />
-                        <span className="font-medium">Coverage Info</span>
-                    </button>
-                </div>
+                {/* Coverage Info Button */}
+                <button
+                    onClick={() => setShowCoverageOverlay(true)}
+                    className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg shadow-lg border border-green-500 hover:bg-green-600 transition-all text-sm"
+                >
+                    <Info size={18} />
+                    <span className="font-medium">Coverage Info</span>
+                </button>
 
                 {/* Second row - Vosges Navigation and Logout */}
                 <div className="flex gap-2">

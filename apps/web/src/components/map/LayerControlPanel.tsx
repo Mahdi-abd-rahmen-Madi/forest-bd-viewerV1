@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Layers, Eye, EyeOff, Pencil } from 'lucide-react';
+import { Layers, Eye, EyeOff, Pencil, Map } from 'lucide-react';
 import { WMSLayerConfig } from '@/services/wmsLayers';
 
 interface LayerControlPanelProps {
@@ -11,6 +11,8 @@ interface LayerControlPanelProps {
     currentZoom: number;
     onDrawStart?: () => void; // ADD THIS
     isDrawing?: boolean; // ADD THIS
+    showCadastre?: boolean;
+    onToggleCadastre?: () => void;
 }
 
 export function LayerControlPanel({
@@ -18,7 +20,9 @@ export function LayerControlPanel({
                                       onToggleLayer,
                                       currentZoom,
                                       onDrawStart,
-                                      isDrawing
+                                      isDrawing,
+                                      showCadastre,
+                                      onToggleCadastre
                                   }: LayerControlPanelProps) {
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -28,6 +32,19 @@ export function LayerControlPanel({
 
     return (
         <div className="absolute top-32 left-[380px] z-10">
+            {/* Cadastre Button */}
+            <button
+                onClick={onToggleCadastre}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded shadow border text-xs font-medium transition-colors mb-2 ${
+                    showCadastre
+                        ? 'bg-[#D82626] text-white border-[#D82626]'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                }`}
+            >
+                <Map size={14} />
+                Cadastre
+            </button>
+
             {/* Draw Polygon Button - SEPARATE FROM LAYERS */}
             <button
                 onClick={onDrawStart}
