@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Field, ObjectType, ID, registerEnumType } from '@nestjs/graphql';
 import { User } from './user.entity';
 
@@ -16,6 +16,8 @@ registerEnumType(AnalysisStatus, {
 
 @ObjectType('UserPolygon')
 @Entity('user_polygons')
+@Index(['userId']) // Index for user-specific polygon queries
+@Index(['status']) // Index for status-based queries
 export class UserPolygon {
     @Field(() => ID)
     @PrimaryGeneratedColumn('uuid')

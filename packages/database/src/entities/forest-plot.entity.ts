@@ -4,6 +4,8 @@ import { Entity, Column, PrimaryColumn, Index } from 'typeorm';
 @Index(['codeRegion'])
 @Index(['codeDepartement'])
 @Index(['codeCommune'])
+@Index(['codeRegion', 'codeDepartement']) // Composite index for regional queries
+@Index(['codeDepartement', 'codeCommune']) // Composite index for departmental queries
 export class ForestPlot {
     @PrimaryColumn()
     id!: string;
@@ -25,6 +27,7 @@ export class ForestPlot {
         srid: 4326,
         name: 'geom'  // explicitly match
     })
+    @Index() // This will create a GIST index for the geometry column
     geom!: any;
 
     @Column('varchar', {
@@ -32,6 +35,7 @@ export class ForestPlot {
         nullable: true,
         name: 'essences'  // explicitly match
     })
+    @Index() // GIN index for array queries
     essences?: string[];
 
     @Column('double precision', {

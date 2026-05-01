@@ -78,7 +78,7 @@ export function PolygonResultsPanel({ result, onClose }: PolygonResultsPanelProp
                 {/* Summary Stats */}
                 <div className="grid grid-cols-3 gap-3">
                     {/* Total Area */}
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                    <div className="bg-linear-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
                         <div className="flex items-center gap-2 text-blue-700 mb-2">
                             <Ruler size={16} />
                             <span className="text-xs font-bold uppercase tracking-wide">Total Area</span>
@@ -90,7 +90,7 @@ export function PolygonResultsPanel({ result, onClose }: PolygonResultsPanelProp
                     </div>
 
                     {/* Forest Area */}
-                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
+                    <div className="bg-linear-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
                         <div className="flex items-center gap-2 text-emerald-700 mb-2">
                             <Trees size={16} />
                             <span className="text-xs font-bold uppercase tracking-wide">Forest Cover</span>
@@ -105,7 +105,7 @@ export function PolygonResultsPanel({ result, onClose }: PolygonResultsPanelProp
                     </div>
 
                     {/* Species Count */}
-                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4 border border-amber-200">
+                    <div className="bg-linear-to-br from-amber-50 to-amber-100 rounded-xl p-4 border border-amber-200">
                         <div className="flex items-center gap-2 text-amber-700 mb-2">
                             <Leaf size={16} />
                             <span className="text-xs font-bold uppercase tracking-wide">Species</span>
@@ -186,7 +186,7 @@ export function PolygonResultsPanel({ result, onClose }: PolygonResultsPanelProp
                                     <div className="mt-3 ml-11">
                                         <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
                                             <div
-                                                className="h-full bg-gradient-to-r from-[#0b4a59] to-emerald-500 rounded-full transition-all duration-500"
+                                                className="h-full bg-linear-to-r from-[#0b4a59] to-emerald-500 rounded-full transition-all duration-500"
                                                 style={{ width: `${species.percentage}%` }}
                                             />
                                         </div>
