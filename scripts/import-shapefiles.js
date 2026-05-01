@@ -237,7 +237,7 @@ class ShapefileImporter {
       const surfaceHectares = this.calculateSurfaceArea(geometry);
       
       // Map shapefile properties to database fields
-      // Updated to match actual BD FORET shapefile structure
+      // Handle both BD FORET v1.0 (2014) and v2.0 (2015) data formats
       const entity = {
         id,
         codeRegion: properties.CODE_REG || null,
@@ -245,11 +245,19 @@ class ShapefileImporter {
         codeCommune: properties.CODE_COM || null,
         lieuDit: properties.LIEU_DIT || null,
         geom: geometry,
-        essences: this.parseEssences(properties.ESSENCE || properties.ESSENCES),
+        essences: this.parseEssences(
+          properties.ESSENCE ||           // v2.0 (Vosges, Landes)
+          properties.ESSENCES ||          // v2.0 alternative  
+          properties.LIBELLE ||           // v1.0 (other departments)
+          properties.LIBELLE2 ||          // v1.0 alternative
+          properties.NOM_TYPN ||          // v1.0 forest type name
+          properties.TFV ||               // fallback
+          properties.TYPN                 // fallback
+        ),
         surfaceHectares: surfaceHectares,
-        typeForet: properties.TYPE_FORET || properties.TFV || null,
-        codeTfv: properties.CODE_TFV || null,
-        tfvG11: properties.TFV_G11 || null
+        typeForet: properties.TYPE_FORET || properties.TFV || properties.LIBELLE || properties.LIBELLE2 || properties.NOM_TYPN,
+        codeTfv: properties.CODE_TFV || properties.TYPN || null,
+        tfvG11: properties.TFV_G11 || properties.NOM_TYPN || null
       };
       
       return entity;
@@ -273,12 +281,57 @@ class ShapefileImporter {
         const parsed = JSON.parse(essencesField);
         return Array.isArray(parsed) ? parsed : [essencesField];
       } catch {
-        // Split by common delimiters
+        // For v1.0 BD FORET data, extract species information from descriptive fields
+        const essences = this.extractSpeciesFromDescription(essencesField);
+        if (essences.length > 0) {
+          return essences;
+        }
+        
+        // Split by common delimiters for v2.0 data
         return essencesField.split(/[,;|]/).map(s => s.trim()).filter(Boolean);
       }
     }
     
     return [String(essencesField)];
+  }
+
+  extractSpeciesFromDescription(description) {
+    if (!description || typeof description !== 'string') return [];
+    
+    const desc = description.toLowerCase().trim();
+    const essences = [];
+    
+    // Extract species based on common French forest terms
+    const speciesPatterns = {
+      'feuillus': ['feuillus', 'feuillu', 'chêne', 'chênes', 'hêtre', 'hêtres', 'charme', 'charmes', 'bouleau', 'bouleaux', 'érable', 'érables'],
+      'conifères': ['conifère', 'conifères', 'résineux', 'sapin', 'sapins', 'épicéa', 'épicéas', 'pin', 'pins', 'douglas', 'mélèze', 'mélèzes'],
+      'mixte': ['mixte', 'mélangé', 'mélangés'],
+      'peupleraie': ['peupleraie', 'peuplier', 'peupliers'],
+      'châtaigneraie': ['châtaigneraie', 'châtaignier', 'châtaigniers']
+    };
+    
+    // Check for species indicators in the description
+    for (const [species, keywords] of Object.entries(speciesPatterns)) {
+      if (keywords.some(keyword => desc.includes(keyword))) {
+        essences.push(species);
+      }
+    }
+    
+    // If no specific species found, use generic forest type
+    if (essences.length === 0) {
+      if (desc.includes('forêt') || desc.includes('forest')) {
+        essences.push('Forêt mixte');
+      } else if (desc.includes('ouvert')) {
+        essences.push('Forêt ouverte');
+      } else if (desc.includes('fermé')) {
+        essences.push('Forêt fermée');
+      } else {
+        // Use the description itself as a fallback
+        essences.push(description);
+      }
+    }
+    
+    return essences;
   }
 
   calculateSurfaceArea(geometry) {
