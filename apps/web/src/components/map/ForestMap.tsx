@@ -398,8 +398,9 @@ export function ForestMap() {
             }
         });
 
-        // Add all WMS layers
-        wmsLayers.forEach((layer) => {
+        // Add layers in specific order to ensure forest appears on top of parcels
+        // First add all layers except forest
+        wmsLayers.filter(layer => layer.id !== 'forest').forEach((layer) => {
             if (layer.vectorTile && layer.id === 'pci-parcels') {
                 // Add PCI vector tile source
                 mapInstance.addSource('pci-parcels-source', {
@@ -450,6 +451,28 @@ export function ForestMap() {
                 });
             }
         });
+
+        // Add forest layer last so it appears on top
+        const forestLayer = wmsLayers.find(layer => layer.id === 'forest');
+        if (forestLayer) {
+            const sourceId = `wms-${forestLayer.id}`;
+            const layerId = `wms-layer-${forestLayer.id}`;
+
+            mapInstance.addSource(sourceId, {
+                type: 'raster',
+                tiles: [getWMSTileUrl(forestLayer)],
+                tileSize: 256,
+                scheme: 'xyz',
+            });
+
+            mapInstance.addLayer({
+                id: layerId,
+                type: 'raster',
+                source: sourceId,
+                paint: { 'raster-opacity': forestLayer.visible ? forestLayer.opacity : 0 },
+                layout: { visibility: forestLayer.visible ? 'visible' : 'none' },
+            });
+        }
         updateWMSLayerVisibility(map.current!.getZoom());
     };
 

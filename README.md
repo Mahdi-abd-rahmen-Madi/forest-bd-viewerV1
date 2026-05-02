@@ -21,6 +21,17 @@
 
 ---
 
+## 🎥 Demo Video
+
+**Screencast Demo**: [Watch the complete application walkthrough](assets/videos/forest-data-viewer-demo.mp4)
+
+This video demonstrates the complete Forest Data Viewer application in action, showcasing:
+- Interactive map navigation and forest data visualization
+- Polygon drawing and spatial analysis tools
+- Real-time species distribution analysis
+- Multi-region forest coverage across France
+- User interface and workflow demonstration
+
 ## Overview
 
 This project represents a complete transformation of the original TALHA017/forest-bd-viewer repository from a basic skeleton into a production-ready full-stack geospatial application. Starting from empty shapefiles and minimal functionality, we built a comprehensive forest data viewer with modern architecture, complete data pipeline, and interactive analysis tools for the Symbiose technical challenge.
