@@ -25,7 +25,7 @@
 
 **Screencast Demo**: 
 
-![Forest Data Viewer Demo](https://raw.githubusercontent.com/Mahdi-abd-rahmen-Madi/forest-bd-viewerV1/master/assets/videos/forest-data-viewer-demo.gif)
+![Forest Data Viewer Demo](https://raw.githubusercontent.com/Mahdi-abd-rahmen-Madi/forest-bd-viewerV1/master/assets/videos/forest-data-viewer-demo-thumbnail.jpg)
 
 **Download Full Quality MP4**: [forest-data-viewer-demo.mp4](https://raw.githubusercontent.com/Mahdi-abd-rahmen-Madi/forest-bd-viewerV1/master/assets/videos/forest-data-viewer-demo.mp4) (16.8 MB)
 
@@ -35,6 +35,58 @@ This video demonstrates the complete Forest Data Viewer application in action, s
 - Real-time species distribution analysis
 - Multi-region forest coverage across France
 - User interface and workflow demonstration
+
+## 🌳 Forest Analysis Showcase
+
+**Interactive Polygon Analysis**: The application provides comprehensive forest analysis tools with real-time spatial calculations and species distribution insights.
+
+### Analysis Workflow
+
+**1. Total Area Analysis**
+![Forest Analysis Step 1](https://raw.githubusercontent.com/Mahdi-abd-rahmen-Madi/forest-bd-viewerV1/master/assets/images/analysis1.png)
+*Complete area overview showing total forest coverage percentage and species found within the selected polygon*
+
+**2. Species Distribution by Percentage**
+![Forest Analysis Step 2](https://raw.githubusercontent.com/Mahdi-abd-rahmen-Madi/forest-bd-viewerV1/master/assets/images/analysis2.png)
+*Detailed percentage breakdown of species distribution showing the proportion of each tree type (Feuillus, Mixte, Conifères)*
+
+**3. Analysis Summary**
+![Forest Analysis Step 3](https://raw.githubusercontent.com/Mahdi-abd-rahmen-Madi/forest-bd-viewerV1/master/assets/images/analysis3.png)
+*Comprehensive summary of the forest analysis with key metrics, species composition, and spatial insights*
+
+**Key Analysis Features**:
+- **Real-time Calculations**: Instant area measurement and forest coverage percentage
+- **Species Intelligence**: Automatic classification of tree species (Feuillus, Mixte, Conifères)
+- **Spatial Queries**: Advanced PostGIS-based spatial analysis with 130,549+ forest plots
+- **Visual Feedback**: Interactive highlighting and selection of forest plots
+- **Data Export**: Save analysis results for further processing
+
+## 🏛️ Misleading Cadastre Feature Fix
+
+**Problem Identified**: The original codebase had a misleading cadastre feature that appeared implemented but was non-functional:
+
+- **LayerNotDefined Error**: The `cadastre` layer didn't exist on the Geoserver
+- **Broken User Experience**: Users could toggle the cadastre button but saw no data
+- **Misleading Implementation**: UI suggested working cadastral functionality
+
+**Solution Implemented**: Complete PLU/PCI urban planning integration with French geoportal services
+
+### Global PLU Zonage Implementation
+![Global PLU Zonage](https://raw.githubusercontent.com/Mahdi-abd-rahmen-Madi/forest-bd-viewerV1/master/assets/images/zonage.png)
+*Comprehensive urban planning zones (N, U, AU, Uz, Uh, Ac, Aca, Nc, Ap, Al, U1, NI, Aci, Ub) integrated from French geoportal WMS services*
+
+### Parcel Limits Integration
+![Cadastral Parcel Limits](https://raw.githubusercontent.com/Mahdi-abd-rahmen-Madi/forest-bd-viewerV1/master/assets/images/parcels.png)
+*Detailed cadastral parcel boundaries with red overlay lines showing individual property limits alongside forest data*
+
+**Technical Fix Details**:
+- **External Data Source**: Integrated IGN France geoportal services (data.geopf.fr)
+- **PLU Zoning**: Urban planning sectors with proper zoom-based visibility (zoom 8+)
+- **PCI Parcels**: Vector tile implementation for cadastral boundaries (zoom 14+)
+- **Unified Control**: Single "Cadastre" button toggles all PLU/PCI layers together
+- **Feature Queries**: Click-to-query functionality for comprehensive land information
+
+**Exercise Requirement Addressed**: ✅ **Part 2, Item #1** - Fixed misleading feature that appeared implemented but was non-functional
 
 ## Overview
 
