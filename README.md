@@ -25,7 +25,9 @@
 
 **Screencast Demo**: 
 
-![Forest Data Viewer Demo](assets/videos/forest-data-viewer-demo.mp4)
+<video src="assets/videos/forest-data-viewer-demo.mp4" width="800" controls>
+  Your browser does not support the video tag.
+</video>
 
 This video demonstrates the complete Forest Data Viewer application in action, showcasing:
 - Interactive map navigation and forest data visualization
