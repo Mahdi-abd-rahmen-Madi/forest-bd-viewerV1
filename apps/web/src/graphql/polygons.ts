@@ -33,7 +33,7 @@ export const GET_MY_POLYGONS = gql`
       areaHectares
       status
       createdAt
-      geometry
+      geometryJson
       analysisResults {
         plotCount
         totalForestArea

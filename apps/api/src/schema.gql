@@ -152,6 +152,7 @@ type UserPolygon {
   areaHectares: Float!
   createdAt: DateTime!
   geometry: String!
+  geometryJson: String!
   id: ID!
   name: String!
   status: AnalysisStatus!

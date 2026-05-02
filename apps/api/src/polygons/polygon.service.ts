@@ -49,7 +49,7 @@ export class PolygonService {
       const polygon = this.polygonRepository.create({
         userId,
         name: input.name,
-        geometry: JSON.stringify(processedGeometry), // Store as JSON string
+        geometry: processedGeometry, // Store as PostGIS geometry (no JSON.stringify)
         areaHectares: input.areaHectares || areaHectares, // Use provided area or calculated
         status: AnalysisStatus.PENDING,
       });
@@ -71,10 +71,14 @@ export class PolygonService {
 
       return await this.polygonRepository.save(savedPolygon);
     } catch (error) {
+      console.error('Error in savePolygon:', error);
       if (error instanceof SyntaxError) {
         throw new BadRequestException('Invalid geometry JSON format');
       }
-      throw error;
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new Error('Failed to save polygon: ' + (error as Error).message);
     }
   }
 
@@ -104,8 +108,10 @@ export class PolygonService {
     }
 
     try {
+      // Convert PostGIS geometry back to GeoJSON for analysis
+      const geometryForAnalysis = polygon.geometry;
       const analysisResults = await this.geospatialService.analyzeSpatialIntersection({
-        geometry: polygon.geometry, // Already stored as JSON string
+        geometry: geometryForAnalysis,
         analysisType: 'full'
       });
       polygon.analysisResults = analysisResults;

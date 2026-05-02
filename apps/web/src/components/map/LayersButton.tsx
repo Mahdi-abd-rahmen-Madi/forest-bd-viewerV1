@@ -1,29 +1,22 @@
-// components/LayerControlPanel.tsx
 'use client';
 
 import { useState } from 'react';
-import { Layers, Eye, EyeOff, Pencil, Map } from 'lucide-react';
+import { Layers, Eye, EyeOff } from 'lucide-react';
 import { WMSLayerConfig } from '@/services/wmsLayers';
 
-interface LayerControlPanelProps {
+interface LayersButtonProps {
     layers: WMSLayerConfig[];
     onToggleLayer: (layerId: string) => void;
     currentZoom: number;
-    onDrawStart?: () => void; // ADD THIS
-    isDrawing?: boolean; // ADD THIS
-    showCadastre?: boolean;
-    onToggleCadastre?: () => void;
+    className?: string;
 }
 
-export function LayerControlPanel({
-                                      layers,
-                                      onToggleLayer,
-                                      currentZoom,
-                                      onDrawStart,
-                                      isDrawing,
-                                      showCadastre,
-                                      onToggleCadastre
-                                  }: LayerControlPanelProps) {
+export function LayersButton({ 
+    layers, 
+    onToggleLayer, 
+    currentZoom,
+    className = ""
+}: LayersButtonProps) {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const isVisible = (layer: WMSLayerConfig) => {
@@ -31,37 +24,10 @@ export function LayerControlPanel({
     };
 
     return (
-        <div className="absolute bottom-4 left-4 z-20">
-            {/* Cadastre Button */}
-            <button
-                onClick={onToggleCadastre}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded shadow border text-xs font-medium transition-colors mb-2 ${
-                    showCadastre
-                        ? 'bg-[#D82626] text-white border-[#D82626]'
-                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                }`}
-            >
-                <Map size={14} />
-                Cadastre
-            </button>
-
-            {/* Draw Polygon Button - SEPARATE FROM LAYERS */}
-            <button
-                onClick={onDrawStart}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded shadow border text-xs font-medium transition-colors mb-2 ${
-                    isDrawing
-                        ? 'bg-[#0b4a59] text-white border-[#0b4a59]'
-                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                }`}
-            >
-                <Pencil size={14} />
-                {isDrawing ? 'Drawing...' : 'Draw Polygon'}
-            </button>
-
-            {/* Layers Button */}
+        <div className={`relative ${className}`}>
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded shadow border text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-2 py-1 rounded shadow border text-xs font-medium transition-colors ${
                     isExpanded ? 'bg-[#0b4a59] text-white border-[#0b4a59]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
                 }`}
             >
@@ -70,7 +36,7 @@ export function LayerControlPanel({
             </button>
 
             {isExpanded && (
-                <div className="mt-1 w-56 bg-white rounded shadow-lg border border-gray-200">
+                <div className="absolute top-full mt-1 left-0 w-56 bg-white rounded shadow-lg border border-gray-200 z-50">
                     <div className="px-2 py-1 bg-gray-50 border-b border-gray-200 text-xs text-gray-500">
                         Zoom: {currentZoom.toFixed(1)}
                     </div>

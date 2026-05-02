@@ -21,12 +21,17 @@ import { FilterPanel } from './FilterPanel';
 import { SavePolygonModal } from './SavePolygonModal';
 import { PolygonResultsPanel } from './PolygonResultsPanel';
 import { SavedPolygonsList } from './SavedPolygonsList';
-import { LayerControlPanel } from './LayerControlPanel';
 import { FeatureQueryPopup } from './FeatureQueryPopup';
 import { ForestCoverageOverlay } from './ForestCoverageOverlay';
+import { ServiceArchitectureModal } from './ServiceArchitectureModal';
+import { PerformanceMetricsModal } from './PerformanceMetricsModal';
+import { TechnicalAchievementModal } from './TechnicalAchievementModal';
+import { CadastreButton } from './CadastreButton';
+import { DrawPolygonButton } from './DrawPolygonButton';
+import { LayersButton } from './LayersButton';
 import { getVosgesCoverageGeoJSON, VOSGES_CENTER, FOREST_REGIONS, getRegionByCode } from '@/utils/forestCoverageGeometry';
 
-import { Layers, LogOut, Map as MapIcon, MapPin, Info, Satellite, Mountain, Sun, Moon } from 'lucide-react';
+import { Layers, LogOut, Map as MapIcon, MapPin, Info, Satellite, Mountain, Sun, Moon, Network, BarChart, Trophy } from 'lucide-react';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
@@ -88,6 +93,11 @@ export function ForestMap() {
     const [showVosgesOutline, setShowVosgesOutline] = useState(true);
     const [highlightedPolygonId, setHighlightedPolygonId] = useState<string | null>(null);
     const [showSavedPolygons, setShowSavedPolygons] = useState(true);
+    
+    // New modal states for exercise mastery buttons
+    const [showServiceArchitectureModal, setShowServiceArchitectureModal] = useState(false);
+    const [showPerformanceMetricsModal, setShowPerformanceMetricsModal] = useState(false);
+    const [showTechnicalAchievementModal, setShowTechnicalAchievementModal] = useState(false);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
@@ -757,9 +767,24 @@ export function ForestMap() {
             draw.current?.deleteAll();
             setDrawnGeometry(null);
             refetchPolygons();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error saving polygon:', error);
-            alert('Failed to save polygon. Please try again.');
+            
+            // Provide more specific error messages
+            let errorMessage = 'Failed to save polygon. Please try again.';
+            if (error.message) {
+                if (error.message.includes('Invalid geometry')) {
+                    errorMessage = 'Invalid polygon geometry. Please draw a valid polygon.';
+                } else if (error.message.includes('network') || error.message.includes('timeout')) {
+                    errorMessage = 'Network error. Please check your connection and try again.';
+                } else if (error.message.includes('database') || error.message.includes('connection')) {
+                    errorMessage = 'Database connection error. Please try again in a moment.';
+                } else {
+                    errorMessage = `Error: ${error.message}`;
+                }
+            }
+            
+            alert(errorMessage);
         }
     };
 
@@ -946,15 +971,30 @@ export function ForestMap() {
         }
 
         const validPolygons = filteredPolygons.map((p) => {
-            let geometry = p.geometry;
+            let geometry = p.geometryJson;
+            
+            // Parse geometry JSON string
             if (typeof geometry === 'string') {
-                try { geometry = JSON.parse(geometry); } catch { return null; }
+                try { 
+                    geometry = JSON.parse(geometry); 
+                } catch { 
+                    console.warn('Failed to parse geometry string for polygon:', p.id);
+                    return null; 
+                }
             }
-            if (!geometry?.coordinates || !Array.isArray(geometry.coordinates)) return null;
+            
+            if (!geometry?.coordinates || !Array.isArray(geometry.coordinates)) {
+                console.warn('Invalid geometry coordinates for polygon:', p.id);
+                return null;
+            }
+            
             return { ...p, geometry };
         }).filter(Boolean);
 
-        if (validPolygons.length === 0) return;
+        if (validPolygons.length === 0) {
+            console.log('No valid polygons to display');
+            return;
+        }
 
         const geojson: GeoJSON.FeatureCollection = {
             type: 'FeatureCollection' as const,
@@ -965,6 +1005,8 @@ export function ForestMap() {
                 properties: { name: p.name, area: p.areaHectares, status: p.status },
             })),
         };
+
+        console.log('Displaying polygons:', geojson);
 
         try {
             mapInstance.addSource('saved-polygons', { type: 'geojson', data: geojson });
@@ -1022,16 +1064,7 @@ export function ForestMap() {
 
             <FilterPanel onRegionSelect={handleRegionNavigate} />
 
-            <LayerControlPanel
-                layers={wmsLayers}
-                onToggleLayer={handleToggleLayer}
-                currentZoom={currentZoom}
-                onDrawStart={handleDrawStart}
-                isDrawing={isDrawing}
-                showCadastre={showCadastre}
-                onToggleCadastre={handleToggleCadastre}
-            />
-
+            
             <SavedPolygonsList 
                 onSelectPolygon={(p) => {
                     setAnalysisResult(p);
@@ -1101,6 +1134,22 @@ export function ForestMap() {
                 onNavigateToRegion={handleNavigateToRegion}
             />
 
+            {/* Exercise Mastery Modals */}
+            <ServiceArchitectureModal
+                visible={showServiceArchitectureModal}
+                onClose={() => setShowServiceArchitectureModal(false)}
+            />
+            
+            <PerformanceMetricsModal
+                visible={showPerformanceMetricsModal}
+                onClose={() => setShowPerformanceMetricsModal(false)}
+            />
+            
+            <TechnicalAchievementModal
+                visible={showTechnicalAchievementModal}
+                onClose={() => setShowTechnicalAchievementModal(false)}
+            />
+
             {/* Query Loading Indicator */}
             {isQuerying && (
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-white rounded-lg shadow-lg px-4 py-2">
@@ -1134,32 +1183,84 @@ export function ForestMap() {
                 </div>
             )}
 
-            {/* Controls positioned after Forest Explorer panel */}
-            <div className="absolute top-4 left-[380px] z-10 flex flex-col gap-2">
+            {/* Exercise Mastery Buttons - positioned to the right of FilterPanel */}
+            <div className="absolute top-4 left-[calc(24rem-30px)] z-10 flex flex-col gap-2">
                 {/* Coverage Info Button */}
                 <button
                     onClick={() => setShowCoverageOverlay(true)}
-                    className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg shadow-lg border border-green-500 hover:bg-green-600 transition-all text-sm"
+                    className="flex items-center gap-1 px-2 py-1 bg-green-500 text-white rounded-lg shadow-lg border border-green-500 hover:bg-green-600 transition-all text-xs"
                 >
-                    <Info size={18} />
+                    <Info size={14} />
                     <span className="font-medium">Coverage Info</span>
                 </button>
 
-                {/* Second row - Vosges Navigation and Logout */}
+                {/* Second row - Explore Forest Regions and Exercise Mastery */}
                 <div className="flex gap-2">
                     <button
                         onClick={() => setShowCoverageOverlay(true)}
-                        className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg shadow-lg border border-green-500 hover:bg-green-600 transition-all text-sm"
+                        className="flex items-center gap-1 px-2 py-1 bg-green-500 text-white rounded-lg shadow-lg border border-green-500 hover:bg-green-600 transition-all text-xs"
                     >
-                        <MapPin size={18} />
+                        <MapPin size={14} />
                         <span className="font-medium">Explore Forest Regions</span>
+                    </button>
+                </div>
+
+                {/* Third row - Exercise Mastery Buttons */}
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setShowServiceArchitectureModal(true)}
+                        className="flex items-center gap-1 px-2 py-1 bg-purple-500 text-white rounded-lg shadow-lg border border-purple-500 hover:bg-purple-600 transition-all text-xs"
+                        title="Service Architecture Demo - Part 3 Achievement"
+                    >
+                        <Network size={14} />
+                        <span className="font-medium">Service Architecture</span>
+                    </button>
+                    
+                    <button
+                        onClick={() => setShowPerformanceMetricsModal(true)}
+                        className="flex items-center gap-1 px-2 py-1 bg-blue-500 text-white rounded-lg shadow-lg border border-blue-500 hover:bg-blue-600 transition-all text-xs"
+                        title="Performance Metrics - Database Optimization"
+                    >
+                        <BarChart size={14} />
+                        <span className="font-medium">Performance</span>
+                    </button>
+                </div>
+
+                {/* Fourth row - Map Control Buttons */}
+                <div className="flex gap-2">
+                    <CadastreButton
+                        showCadastre={showCadastre}
+                        onToggleCadastre={handleToggleCadastre}
+                    />
+                    
+                    <DrawPolygonButton
+                        isDrawing={isDrawing}
+                        onDrawStart={handleDrawStart}
+                    />
+                    
+                    <LayersButton
+                        layers={wmsLayers}
+                        onToggleLayer={handleToggleLayer}
+                        currentZoom={currentZoom}
+                    />
+                </div>
+
+                {/* Fifth row - Technical Achievement and Logout */}
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setShowTechnicalAchievementModal(true)}
+                        className="flex items-center gap-1 px-2 py-1 bg-amber-500 text-white rounded-lg shadow-lg border border-amber-500 hover:bg-amber-600 transition-all text-xs"
+                        title="Technical Achievement Showcase - Complete Exercise Overview"
+                    >
+                        <Trophy size={14} />
+                        <span className="font-medium">Achievements</span>
                     </button>
 
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-2 px-3 py-2 bg-white text-red-600 rounded-lg shadow-lg border border-gray-200 hover:bg-red-50 transition-all text-sm"
+                        className="flex items-center gap-1 px-2 py-1 bg-white text-red-600 rounded-lg shadow-lg border border-gray-200 hover:bg-red-50 transition-all text-xs"
                     >
-                        <LogOut size={18} />
+                        <LogOut size={14} />
                         <span className="font-medium">Logout</span>
                     </button>
                 </div>

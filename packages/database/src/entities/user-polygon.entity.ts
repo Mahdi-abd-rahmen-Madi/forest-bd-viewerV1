@@ -37,8 +37,26 @@ export class UserPolygon {
     name!: string;
 
     @Field(() => String)
-    @Column('jsonb', { nullable: true })
+    @Column('geometry', {
+        spatialFeatureType: 'MultiPolygon',
+        srid: 4326,
+        name: 'geometry'
+    })
+    @Index() // GIST index for spatial queries
     geometry!: any;
+
+    // Custom getter to serialize PostGIS geometry to JSON for GraphQL
+    @Field(() => String)
+    get geometryJson(): string {
+        if (!this.geometry) return '';
+        // If it's already a string, return it
+        if (typeof this.geometry === 'string') return this.geometry;
+        // If it's a PostGIS geometry object, convert to JSON
+        if (typeof this.geometry === 'object' && this.geometry.type && this.geometry.coordinates) {
+            return JSON.stringify(this.geometry);
+        }
+        return '';
+    }
 
     @Field(() => Number)
     @Column('double precision')
