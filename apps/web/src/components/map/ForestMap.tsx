@@ -818,11 +818,11 @@ export function ForestMap() {
 
     // Handle fly to polygon
     const handleFlyToPolygon = (polygon: any) => {
-        if (!map.current || !polygon.geometry) {
+        if (!map.current || !polygon.geometryJson) {
             return;
         }
 
-        let geometry = polygon.geometry;
+        let geometry = polygon.geometryJson;
         
         if (typeof geometry === 'string') {
             try { 
