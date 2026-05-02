@@ -23,7 +23,9 @@
 
 ## 🎥 Demo Video
 
-**Screencast Demo**: [Watch the complete application walkthrough](assets/videos/forest-data-viewer-demo.mp4)
+**Screencast Demo**: 
+
+![Forest Data Viewer Demo](assets/videos/forest-data-viewer-demo.mp4)
 
 This video demonstrates the complete Forest Data Viewer application in action, showcasing:
 - Interactive map navigation and forest data visualization
