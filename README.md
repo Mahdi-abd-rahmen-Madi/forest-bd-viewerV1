@@ -25,9 +25,9 @@
 
 **Screencast Demo**: 
 
-![Forest Data Viewer Demo](https://raw.githubusercontent.com/Mahdi-abd-rahmen-Madi/forest-bd-viewerV1/main/assets/videos/forest-data-viewer-demo.gif)
+![Forest Data Viewer Demo](https://raw.githubusercontent.com/Mahdi-abd-rahmen-Madi/forest-bd-viewerV1/master/assets/videos/forest-data-viewer-demo.gif)
 
-**Download Full Quality MP4**: [forest-data-viewer-demo.mp4](https://raw.githubusercontent.com/Mahdi-abd-rahmen-Madi/forest-bd-viewerV1/main/assets/videos/forest-data-viewer-demo.mp4) (16.8 MB)
+**Download Full Quality MP4**: [forest-data-viewer-demo.mp4](https://raw.githubusercontent.com/Mahdi-abd-rahmen-Madi/forest-bd-viewerV1/master/assets/videos/forest-data-viewer-demo.mp4) (16.8 MB)
 
 This video demonstrates the complete Forest Data Viewer application in action, showcasing:
 - Interactive map navigation and forest data visualization
