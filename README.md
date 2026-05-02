@@ -178,13 +178,30 @@ forest-bd-viewer/
 git clone <repository>
 cd forest-bd-viewer
 
-# Run complete setup (database + application)
+# For development with hot-reload:
 ./start-dev.sh
+
+# For preview/demo mode (no login, optimized performance):
+./start-preview.sh
 
 # Or for multi-department import:
 ./scripts/import-all-departments.sh --auto
 pnpm run dev
 ```
+
+### 🎯 Preview Mode (Demo/Showcase)
+```bash
+# Launch optimized preview with no login required
+./start-preview.sh
+# or
+pnpm run preview
+```
+
+**Preview Mode Features:**
+- 🚀 **Production Performance**: Optimized builds for maximum speed
+- 🔓 **No Login Required**: Authentication bypassed for easy demonstration
+- 🌳 **Existing Data**: Uses your existing forest database data
+- 📱 **Showcase Ready**: Clean, professional appearance for presentations
 
 ### Manual Setup
 ```bash
