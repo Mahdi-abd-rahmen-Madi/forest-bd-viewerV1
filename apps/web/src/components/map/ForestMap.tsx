@@ -199,9 +199,10 @@ export function ForestMap() {
     useEffect(() => {
         if (!mapContainer.current) return;
 
-        const initialLng = user?.lastLng ?? lng;
-        const initialLat = user?.lastLat ?? lat;
-        const initialZoom = user?.lastZoom ?? zoom;
+        // Prioritize persisted mapStore state, fallback to user auth state, then defaults
+        const initialLng = lng ?? user?.lastLng ?? 2.2137;
+        const initialLat = lat ?? user?.lastLat ?? 46.2276;
+        const initialZoom = zoom ?? user?.lastZoom ?? 5;
 
         map.current = new mapboxgl.Map({
             container: mapContainer.current,

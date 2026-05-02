@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface MapFilters {
     regionCode?: string;
@@ -20,25 +21,32 @@ interface MapState {
 }
 
 // Default to center of France
-export const useMapStore = create<MapState>((set) => ({
-    lng: 2.2137,
-    lat: 46.2276,
-    zoom: 5,
-    filters: {},
-    showCadastre: false,
+export const useMapStore = create<MapState>()(
+    persist(
+        (set) => ({
+            lng: 2.2137,
+            lat: 46.2276,
+            zoom: 5,
+            filters: {},
+            showCadastre: false,
 
-    setViewState: (lng, lat, zoom) => set({ lng, lat, zoom }),
+            setViewState: (lng, lat, zoom) => set({ lng, lat, zoom }),
 
-    setFilters: (filters) => set((state) => ({
-        filters: { ...state.filters, ...filters }
-    })),
+            setFilters: (filters) => set((state) => ({
+                filters: { ...state.filters, ...filters }
+            })),
 
-    resetFilters: () => set({
-        filters: {},
-        lng: 2.2137,
-        lat: 46.2276,
-        zoom: 5
-    }),
+            resetFilters: () => set({
+                filters: {},
+                lng: 2.2137,
+                lat: 46.2276,
+                zoom: 5
+            }),
 
-    setShowCadastre: (show) => set({ showCadastre: show }),
-}));
+            setShowCadastre: (show) => set({ showCadastre: show }),
+        }),
+        {
+            name: 'map-storage',
+        }
+    )
+);
