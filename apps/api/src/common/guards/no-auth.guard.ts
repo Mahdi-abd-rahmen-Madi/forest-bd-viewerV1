@@ -10,8 +10,8 @@ export class NoAuthGuard {
         
         // Set a mock user for development
         request.user = {
-            sub: 'dev-user',
-            id: 'dev-user',
+            sub: '00000000-0000-0000-0000-000000000000',
+            id: '00000000-0000-0000-0000-000000000000',
             email: 'dev@example.com',
             firstName: 'Dev',
             lastName: 'User',

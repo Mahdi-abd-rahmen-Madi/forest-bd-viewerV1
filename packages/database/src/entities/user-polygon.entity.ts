@@ -24,7 +24,7 @@ export class UserPolygon {
     id!: string;
 
     @Field()
-    @Column()
+    @Column({ name: 'user_id' })
     userId!: string;
 
     @Field(() => User, { nullable: true })
@@ -59,11 +59,11 @@ export class UserPolygon {
     }
 
     @Field(() => Number)
-    @Column('double precision')
+    @Column('double precision', { name: 'area_hectares' })
     areaHectares!: number;
 
     @Field(() => AnalysisResults, { nullable: true })
-    @Column('jsonb', { nullable: true })
+    @Column('jsonb', { nullable: true, name: 'analysis_results' })
     analysisResults?: AnalysisResults | null;
 
     @Field(() => AnalysisStatus)
@@ -75,7 +75,7 @@ export class UserPolygon {
     status!: AnalysisStatus;
 
     @Field(() => Date)
-    @CreateDateColumn()
+    @CreateDateColumn({ name: 'created_at' })
     createdAt!: Date;
 }
 

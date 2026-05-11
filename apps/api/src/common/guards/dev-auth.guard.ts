@@ -19,8 +19,8 @@ export class DevAuthGuard extends GqlAuthGuard {
                 console.log('DevAuthGuard - Using dev token bypass');
                 // Set a mock user on the request
                 request.user = {
-                    sub: 'dev-user',
-                    id: 'dev-user',
+                    sub: '00000000-0000-0000-0000-000000000000',
+                    id: '00000000-0000-0000-0000-000000000000',
                     email: 'dev@example.com',
                     firstName: 'Dev',
                     lastName: 'User',

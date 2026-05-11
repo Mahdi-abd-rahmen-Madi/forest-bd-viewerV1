@@ -25,7 +25,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         if (process.env.NODE_ENV === 'development' && payload.sub === 'dev-user') {
             // Return a mock user for development
             return {
-                id: 'dev-user',
+                id: '00000000-0000-0000-0000-000000000000',
                 email: 'dev@example.com',
                 firstName: 'Dev',
                 lastName: 'User',
