@@ -285,6 +285,12 @@ forest-bd-viewer/
 git clone <repository>
 cd forest-bd-viewer
 
+# Initialize database (creates tables and test user)
+npm run db:init
+
+# Install dependencies
+pnpm install
+
 # For development with hot-reload:
 ./start-dev.sh
 
@@ -295,6 +301,24 @@ cd forest-bd-viewer
 ./scripts/import-all-departments.sh --auto
 pnpm run dev
 ```
+
+### Database Setup
+The application requires PostgreSQL with PostGIS. Use these commands for database management:
+
+```bash
+# Initialize database (creates tables, indexes, and test user)
+npm run db:init
+
+# Reset database (drops and recreates everything)
+npm run db:reset
+
+# Manual database setup (if npm scripts don't work)
+sudo -u postgres psql -d forest_bd_viewer -f scripts/init-database.sql
+```
+
+**Test User**: A test user is automatically created with:
+- Email: `test@example.com`
+- ID: `00000000-0000-0000-0000-000000000000`
 
 ### 🎯 Preview Mode (Demo/Showcase)
 ```bash
