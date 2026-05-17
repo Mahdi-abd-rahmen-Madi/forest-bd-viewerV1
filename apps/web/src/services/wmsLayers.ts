@@ -1,4 +1,4 @@
-const GEOSERVER_URL = '/geoserver'; // Proxy through Next.js
+const GEOSERVER_URL = '/api/geoserver'; // Proxy through Next.js API route with custom timeout
 const WORKSPACE = process.env.NEXT_PUBLIC_GEOSERVER_WORKSPACE || 'prod';
 
 export interface WMSLayerConfig {
